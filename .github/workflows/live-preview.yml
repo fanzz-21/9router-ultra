@@ -29,7 +29,6 @@ jobs:
     env:
       PORT: "20127"
       HOSTNAME: "127.0.0.1"
-      NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
       DATA_DIR: ${{ github.workspace }}/.preview-data
     steps:
@@ -41,8 +40,12 @@ jobs:
         with:
           node-version: "22"
 
+      # NOTE: NODE_ENV is intentionally NOT set to "production" at the job level.
+      # With NODE_ENV=production, npm skips devDependencies, and the build needs
+      # @tailwindcss/postcss / tailwindcss / eslint-config-next from devDependencies.
+      # We set NODE_ENV=production only on the server-start step below.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --include=dev --no-audit --no-fund
 
       - name: Build
         run: npm run build
@@ -55,6 +58,8 @@ jobs:
           cloudflared --version
 
       - name: Start server
+        env:
+          NODE_ENV: production
         run: |
           mkdir -p "$DATA_DIR"
           nohup node custom-server.js > "$RUNNER_TEMP/server.log" 2>&1 &
