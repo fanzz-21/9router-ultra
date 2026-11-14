@@ -25,7 +25,7 @@ COPY package.json ./
 # the active user, and sharing=locked keeps concurrent/multi-platform builds
 # from corrupting the shared cache. Requires BuildKit (DOCKER_BUILDKIT=1, the
 # default on modern Docker and used by CaptainDuckDuck via captain-definition).
-RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+RUN --mount=type=cache,id=npm-cache,target=/root/.npm,sharing=locked \
     npm install \
       --cache=/root/.npm \
       --registry="${NPM_REGISTRY}" \
