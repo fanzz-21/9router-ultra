@@ -17,6 +17,10 @@ on:
         description: "How long to keep the tunnel open (max 350 — the job hard-stops at 360 min)"
         required: false
         default: "60"
+      initial_password:
+        description: "Dashboard login password (required for remote access; 9Router blocks the default password over a tunnel)"
+        required: false
+        default: "ChangeMe-9router!"
 
 permissions:
   contents: read
@@ -60,6 +64,10 @@ jobs:
       - name: Start server
         env:
           NODE_ENV: production
+          # 9Router blocks remote login with the built-in default password when the
+          # dashboard is reached over a tunnel (non-local request). Setting
+          # INITIAL_PASSWORD clears that gate so you can log in via the public URL.
+          INITIAL_PASSWORD: ${{ github.event.inputs.initial_password }}
         run: |
           mkdir -p "$DATA_DIR"
           nohup node custom-server.js > "$RUNNER_TEMP/server.log" 2>&1 &
@@ -79,6 +87,8 @@ jobs:
           done
 
       - name: Open Cloudflare tunnel and print URL
+        env:
+          LOGIN_PASSWORD: ${{ github.event.inputs.initial_password }}
         run: |
           cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${PORT}" \
             > "$RUNNER_TEMP/cf.log" 2>&1 &
@@ -109,11 +119,17 @@ jobs:
             echo "- Compare Models: [$URL/dashboard/compare]($URL/dashboard/compare)"
             echo "- Health check returned: \`HTTP $CODE\`"
             echo ""
+            echo "### 🔐 Login"
+            echo "9Router blocks the default password over a public tunnel, so use the password set for this run:"
+            echo ""
+            echo "- **Password:** \`${LOGIN_PASSWORD}\`"
+            echo ""
             echo "> ⚠️ Temporary preview. It dies when this run ends (duration or the 6h job limit)."
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "=================================================="
           echo "  PUBLIC URL: $URL   (health: HTTP $CODE)"
+          echo "  LOGIN PASSWORD: ${LOGIN_PASSWORD}"
           echo "=================================================="
 
       - name: Keep tunnel open
