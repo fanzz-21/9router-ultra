@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button } from "@/shared/components";
-import { getModelsByProviderId } from "@/shared/constants/models";
+import { getModelsByProviderId, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 import { FREE_PROVIDERS, isAnthropicCompatibleProvider, isOpenAICompatibleProvider } from "@/shared/constants/providers";
+import { getPricingForModel, calculateCostFromTokens, formatCost as formatCostUsd } from "open-sse/providers/pricing.js";
+import { describeEmptyResponse } from "@/shared/utils/modelResponse";
 
 const STORAGE_KEYS = {
   selectedModelIds: "compare-models.selectedModelIds",
@@ -11,14 +13,13 @@ const STORAGE_KEYS = {
   draft: "compare-models.draft",
 };
 
-// Keep the comparison readable: cap the number of side-by-side columns so the
-// grid stays legible and we never fan out an unbounded number of requests.
-const MAX_MODELS = 6;
+// Match serenhope's arena: up to four contenders stay legible side-by-side and
+// keep the parallel fan-out bounded.
+const MAX_MODELS = 4;
 
-function createId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `cmp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
+const ALIAS_TO_PROVIDER_ID = Object.fromEntries(
+  Object.entries(PROVIDER_ID_TO_ALIAS || {}).map(([id, alias]) => [alias, id])
+);
 
 function safeParse(value, fallback) {
   try {
@@ -63,6 +64,18 @@ function readAssistantText(chunk) {
   return pieces[0] || "";
 }
 
+// Pull reasoning/thinking text off a streamed chunk so slow reasoners show
+// activity before the final answer lands.
+function readReasoningText(chunk) {
+  if (!chunk || typeof chunk !== "object") return "";
+  const choice = chunk.choices?.[0];
+  const delta = choice?.delta || {};
+  const pieces = [delta.reasoning_content, delta.reasoning, delta.thinking, choice?.message?.reasoning_content]
+    .map(textValue)
+    .filter(Boolean);
+  return pieces[0] || "";
+}
+
 // Pull a usage block off any chunk (terminal usage chunks carry it top-level).
 function readUsage(chunk) {
   if (!chunk || typeof chunk !== "object") return null;
@@ -74,17 +87,21 @@ function readUsage(chunk) {
     prompt != null && completion != null ? prompt + completion : null
   );
   if (prompt == null && completion == null && total == null) return null;
-  return { prompt, completion, total };
+  return {
+    prompt,
+    completion,
+    total,
+    prompt_tokens: prompt ?? undefined,
+    completion_tokens: completion ?? undefined,
+    total_tokens: total ?? undefined,
+  };
 }
 
-// Cost is only shown when the provider actually returns one — never guessed.
-function readCost(chunk) {
-  if (!chunk || typeof chunk !== "object") return null;
-  const candidates = [chunk.cost, chunk.usage?.cost, chunk.usage?.total_cost, chunk.response?.usage?.cost];
-  for (const candidate of candidates) {
-    if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
-  }
-  return null;
+// Read an explicit finish_reason off a chunk so empty-response hints can explain
+// length/filter cut-offs.
+function readFinishReason(chunk) {
+  if (!chunk || typeof chunk !== "object") return "";
+  return textValue(chunk.choices?.[0]?.finish_reason || chunk.stop_reason || "");
 }
 
 function getProviderLabel(connection) {
@@ -172,15 +189,133 @@ function buildFreeProviderGroups() {
   return groups.sort((a, b) => a.providerName.localeCompare(b.providerName));
 }
 
+// Split a request model id into (provider, model) so pricing.js can resolve it.
+// Mirrors arena's splitModel: an alias prefix (cc, gc, ...) maps back to the
+// provider id pricing tables are keyed on.
+function splitModel(value) {
+  const str = String(value || "").trim();
+  if (!str.includes("/")) return { provider: null, model: str };
+  const firstSlash = str.indexOf("/");
+  const prefix = str.slice(0, firstSlash);
+  return { provider: ALIAS_TO_PROVIDER_ID[prefix] || prefix, model: str.slice(firstSlash + 1) };
+}
+
+// Cost is only shown when pricing.js can resolve a rate — never fabricated. A
+// provider-reported cost always wins over the local estimate.
+function estimateCost(model, usage) {
+  if (!usage) return null;
+  const { provider, model: bareModel } = splitModel(model?.requestModel || model?.id || "");
+  const pricing = getPricingForModel(provider, bareModel);
+  if (!pricing) return null;
+  const cost = calculateCostFromTokens(usage, pricing);
+  return Number.isFinite(cost) ? cost : null;
+}
+
+// Read a provider-reported cost straight off a chunk when present.
+function readReportedCost(chunk) {
+  if (!chunk || typeof chunk !== "object") return null;
+  const candidates = [chunk.cost, chunk.usage?.cost, chunk.usage?.total_cost, chunk.response?.usage?.cost];
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
+  }
+  return null;
+}
+
 function formatMs(ms) {
   if (ms == null) return "—";
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function formatCost(cost) {
-  if (cost == null) return null;
-  return `$${cost.toFixed(cost < 0.01 ? 6 : 4)}`;
+// Battle costs are usually sub-cent, so two decimals would render every row as
+// $0.00. Mirrors arena's showCost.
+function showCost(cost) {
+  if (cost === null || cost === undefined || Number.isNaN(cost)) return "n/a";
+  if (cost >= 0.01) return formatCostUsd(cost);
+  if (cost < 0.0001) return `$${cost.toExponential(1)}`;
+  return `$${cost.toFixed(4)}`;
+}
+
+// A stopped card keeps its partial text, so it needs a sentence of its own.
+function stoppedNote(text, thinking) {
+  const lines = String(text || "").split("\n").filter((line) => line.trim()).length;
+  if (lines) return `Stopped after ${lines} ${lines === 1 ? "line" : "lines"} of output.`;
+  if (String(thinking || "").trim()) return "Stopped while the model was still reasoning.";
+  return "Stopped before any output arrived.";
+}
+
+// Width of the bar for one value inside a metric. A single entrant gets a full
+// bar; otherwise it is scaled against the worst value so the comparison shows.
+function barPct(v, best, worst) {
+  if (v == null || best == null || worst == null) return 0;
+  if (best === worst) return 100;
+  const lo = Math.min(best, worst);
+  const hi = Math.max(best, worst);
+  return Math.max(8, Math.round(((v - lo) / (hi - lo)) * 92) + 8);
+}
+
+// One metric, described once. The winner rail, the table bars and the header
+// all read from this single list, so a metric can never be shown as the winner
+// in one place and left unbarred in another.
+const METRIC_DEFS = [
+  { key: "ms", label: "Fastest", icon: "speed", color: "#f59e0b", lowerIsBetter: true, value: (r) => (r.ms == null ? null : r.ms), format: (v) => formatMs(v), hint: "total time to finish" },
+  { key: "ttft", label: "First token", icon: "bolt", color: "#38bdf8", lowerIsBetter: true, value: (r) => (r.ttftMs == null ? null : r.ttftMs), format: (v) => formatMs(v), hint: "time to first token" },
+  { key: "cost", label: "Cheapest", icon: "payments", color: "#22c55e", lowerIsBetter: true, value: (r) => (r.cost == null ? null : r.cost), format: (v) => showCost(v), hint: "price of this answer" },
+  { key: "tokens", label: "Leanest", icon: "data_usage", color: "#a855f7", lowerIsBetter: true, value: (r) => (r.totalTokens ? r.totalTokens : null), format: (v) => String(v), hint: "tokens billed" },
+  { key: "chars", label: "Longest", icon: "article", color: "#f43f5e", lowerIsBetter: false, value: (r) => (r.chars ? r.chars : null), format: (v) => String(v), hint: "characters written" },
+];
+
+// Winner per metric, computed from the same pool the table shows: only
+// finished, unstopped, answered runs compete.
+function metricsFor(answered) {
+  return METRIC_DEFS.map((def) => {
+    const withValue = answered
+      .map((r) => ({ r, v: def.value(r) }))
+      .filter((x) => x.v != null && !Number.isNaN(x.v));
+    if (!withValue.length) return { def, winner: null, best: null, worst: null };
+    const sorted = withValue.slice().sort((a, b) => (def.lowerIsBetter ? a.v - b.v : b.v - a.v));
+    return { def, winner: sorted[0].r, best: sorted[0].v, worst: sorted[sorted.length - 1].v };
+  });
+}
+
+/**
+ * Rank finished runs. Quality can only be judged by reading, so the automatic
+ * ranking is explicitly about speed + spend; a manual pick always wins.
+ */
+function buildRanking(models, columns) {
+  return models
+    .map((model) => ({ model, column: columns[model.id] }))
+    .filter((entry) => {
+      const status = entry.column?.status;
+      return status && status !== "idle" && status !== "streaming";
+    })
+    .map((entry) => {
+      const column = entry.column || {};
+      const metrics = column.metrics || {};
+      const ok = column.status !== "error";
+      const answered = ok && column.kind !== "empty" && column.status !== "aborted";
+      return {
+        model: entry.model,
+        modelId: entry.model.id,
+        ok,
+        answered,
+        stopped: column.status === "aborted",
+        ms: metrics.totalMs ?? null,
+        ttftMs: metrics.ttftMs ?? null,
+        totalTokens: metrics.usage?.total ?? 0,
+        cost: metrics.cost ?? null,
+        chars: (column.text || "").length,
+      };
+    })
+    .sort((a, b) => {
+      if (a.answered !== b.answered) return a.answered ? -1 : 1;
+      if (a.ok !== b.ok) return a.ok ? -1 : 1;
+      if (a.stopped !== b.stopped) return a.stopped ? 1 : -1;
+      const ta = a.ms ?? Number.MAX_SAFE_INTEGER;
+      const tb = b.ms ?? Number.MAX_SAFE_INTEGER;
+      if (ta !== tb) return ta - tb;
+      return (a.cost ?? Number.MAX_SAFE_INTEGER) - (b.cost ?? Number.MAX_SAFE_INTEGER);
+    });
 }
 
 const STATUS_META = {
@@ -190,6 +325,169 @@ const STATUS_META = {
   error: { label: "Error", color: "text-rose-300", icon: "error" },
   aborted: { label: "Stopped", color: "text-amber-300", icon: "stop_circle" },
 };
+
+// Ticking lives on the card so a running timer never re-renders the whole grid.
+function Elapsed({ startedAt }) {
+  const [now, setNow] = useState(() => performance.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(performance.now()), 500);
+    return () => clearInterval(id);
+  }, []);
+  if (startedAt == null) return null;
+  const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  return <span className="shrink-0 font-mono text-[11px] text-white/45 tabular-nums">{`${seconds}s so far`}</span>;
+}
+
+function RankBadge({ icon, text, accent }) {
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${accent ? "bg-amber-500/15 text-amber-300" : "border border-white/10 bg-white/5 text-white/55"}`}>
+      <span className="material-symbols-outlined text-[11px]">{icon}</span>
+      {text}
+    </span>
+  );
+}
+
+// Number plus bar. The bar makes the comparison readable; the digits stay for
+// exactness. A missing value shows a dash and no bar.
+function MetricCell({ entry, metric, format }) {
+  if (!metric) return <span className="font-mono text-white/45 tabular-nums">—</span>;
+  const v = metric.def.value(entry);
+  if (v == null) return <span className="font-mono text-white/45 tabular-nums">—</span>;
+  const isWinner = metric.winner?.modelId === entry.modelId;
+  const pct = barPct(v, metric.best, metric.worst);
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <span className={`font-mono tabular-nums ${isWinner ? "font-semibold" : "text-white/70"}`} style={isWinner ? { color: metric.def.color } : undefined}>
+        {format(v)}
+        {isWinner ? <span className="material-symbols-outlined ml-0.5 align-middle text-[11px] leading-none">star</span> : null}
+      </span>
+      <span className="block h-1 w-full min-w-[42px] max-w-[90px] overflow-hidden rounded-full bg-white/10">
+        <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: metric.def.color, opacity: isWinner ? 1 : 0.45 }} />
+      </span>
+    </span>
+  );
+}
+
+function FinalResult({ ranked, pick, setPick, runId }) {
+  // An empty 200 response is not a win, and neither is an answer the user cut
+  // off, so every award needs a real finished answer.
+  const metrics = useMemo(() => metricsFor(ranked.filter((r) => r.answered && !r.stopped)), [ranked]);
+  const answered = ranked.filter((r) => r.answered && !r.stopped);
+  const byKey = useMemo(() => Object.fromEntries(metrics.map((m) => [m.def.key, m])), [metrics]);
+  const winners = {
+    fastest: byKey.ms?.winner || null,
+    cheapest: byKey.cost?.winner || null,
+    leanest: byKey.tokens?.winner || null,
+    richest: byKey.chars?.winner || null,
+    firstToken: byKey.ttft?.winner || null,
+  };
+
+  const leader = ranked[0];
+  const manual = pick != null ? ranked.find((r) => r.modelId === pick) : null;
+
+  return (
+    <div className="flex flex-col gap-4 rounded-[20px] border border-white/10 bg-[#2f2f2f] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-amber-300">trophy</span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-white">Final Result</h3>
+            <p className="text-[11px] text-white/55">
+              {manual ? (
+                <>Your pick: <code className="font-mono">{manual.model.name}</code></>
+              ) : leader?.stopped ? (
+                "Every run was stopped before it finished."
+              ) : leader?.answered ? (
+                <><code className="font-mono">{leader.model.name}</code> answered fastest — tap “My pick” below for quality.</>
+              ) : (
+                "No contender answered successfully."
+              )}
+            </p>
+          </div>
+        </div>
+        <span className="text-[10px] text-white/40">run #{runId}</span>
+      </div>
+
+      {answered.length > 1 ? (
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          {metrics.filter((m) => m.winner).map(({ def, winner, best }) => (
+            <button
+              key={def.key}
+              type="button"
+              onClick={() => setPick(winner.modelId)}
+              title={`${def.hint} — tap to make it your pick`}
+              className={`flex flex-col gap-1.5 rounded-xl border p-3 text-left transition ${pick === winner.modelId ? "border-amber-400/50 bg-amber-500/10" : "border-white/10 hover:border-white/25 hover:bg-white/5"}`}
+            >
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/55">
+                <span className="material-symbols-outlined text-[13px] leading-none" style={{ color: def.color }}>{def.icon}</span>
+                {def.label}
+              </span>
+              <span className="font-mono text-lg font-bold leading-none tabular-nums" style={{ color: def.color }}>{def.format(best)}</span>
+              <span className="truncate font-mono text-[11px] text-white">{winner.model.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/45">
+        <span className="material-symbols-outlined text-[12px] leading-none">info</span>
+        <span>Ranked automatically on speed and spend only — bars compare the same metric across contenders. Answer quality is yours to judge, so use “My pick”.</span>
+      </div>
+
+      <div className="min-w-0 overflow-x-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-white/10 text-white/50">
+              <th className="py-2 pr-3 text-left font-medium">Model</th>
+              <th className="px-3 py-2 text-right font-medium">Time</th>
+              <th className="px-3 py-2 text-right font-medium">First token</th>
+              <th className="px-3 py-2 text-right font-medium">Tokens</th>
+              <th className="px-3 py-2 text-right font-medium">Cost</th>
+              <th className="py-2 pl-3 text-right font-medium">My pick</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((entry, position) => {
+              const isWinner = position === 0 && entry.answered && !entry.stopped && pick == null;
+              const isPicked = pick === entry.modelId;
+              return (
+                <tr key={entry.modelId} className={`border-b border-white/5 last:border-0 ${isPicked ? "bg-amber-500/5" : ""}`}>
+                  <td className="py-2 pr-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="w-4 shrink-0 text-white/45 tabular-nums">{position + 1}</span>
+                      <code className="max-w-[220px] truncate font-mono text-white">{entry.model.name}</code>
+                      {isWinner ? <RankBadge icon="trophy" text="fastest" /> : null}
+                      {winners.firstToken?.modelId === entry.modelId ? <RankBadge icon="bolt" text="first token" /> : null}
+                      {winners.cheapest?.modelId === entry.modelId ? <RankBadge icon="payments" text="cheapest" /> : null}
+                      {winners.richest?.modelId === entry.modelId && winners.richest?.modelId !== winners.leanest?.modelId ? <RankBadge icon="article" text="longest" /> : null}
+                      {entry.stopped ? <RankBadge icon="stop_circle" text="stopped" /> : null}
+                      {isPicked ? <RankBadge icon="check" text="your pick" accent /> : null}
+                    </div>
+                    {!entry.answered && !entry.stopped ? (
+                      <span className={`text-[11px] ${entry.ok ? "text-amber-300" : "text-rose-300"}`}>{entry.ok ? "empty answer" : "failed"}</span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 text-right"><MetricCell entry={entry} metric={byKey.ms} format={(v) => formatMs(v)} /></td>
+                  <td className="px-3 py-2 text-right"><MetricCell entry={entry} metric={byKey.ttft} format={(v) => formatMs(v)} /></td>
+                  <td className="px-3 py-2 text-right"><MetricCell entry={entry} metric={byKey.tokens} format={(v) => String(v)} /></td>
+                  <td className="px-3 py-2 text-right"><MetricCell entry={entry} metric={byKey.cost} format={(v) => showCost(v)} /></td>
+                  <td className="py-2 pl-3 text-right">
+                    <button
+                      onClick={() => setPick(isPicked ? null : entry.modelId)}
+                      className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition ${isPicked ? "border-amber-400 bg-amber-400 text-black" : "border-white/15 text-white/55 hover:border-amber-400/50 hover:text-amber-300"}`}
+                    >
+                      {isPicked ? "picked" : "pick"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default function CompareModelsPageClient() {
   const [providerGroups, setProviderGroups] = useState([]);
@@ -213,8 +511,11 @@ export default function CompareModelsPageClient() {
   const [isSending, setIsSending] = useState(false);
   // Shared conversation sent to every selected model on each turn.
   const [sharedConversation, setSharedConversation] = useState([]);
-  // Per-model column state keyed by model.id: { text, status, error, metrics }.
+  // Per-model column state keyed by model.id.
   const [columns, setColumns] = useState({});
+  const [runId, setRunId] = useState(0);
+  // Manual winner pick for the Final Result card, keyed by model.id.
+  const [pick, setPick] = useState(null);
 
   const abortControllersRef = useRef([]);
   const modelMenuRef = useRef(null);
@@ -398,14 +699,14 @@ export default function CompareModelsPageClient() {
   }, [providerGroups]);
 
   // Resolve selected ids to live model objects; ids that no longer exist (e.g.
-  // a provider was removed) are simply dropped from the view. Persistence is
-  // reconciled lazily on the next selection change, so no effect is needed.
+  // a provider was removed) are simply dropped from the view.
   const selectedModels = useMemo(
     () => selectedModelIds.map((id) => modelIndex.get(id)).filter(Boolean),
     [selectedModelIds, modelIndex]
   );
 
   const canSend = !isSending && selectedModels.length > 0 && draft.trim().length > 0;
+  const ranked = useMemo(() => buildRanking(selectedModels, columns), [selectedModels, columns]);
 
   const toggleModel = (modelId) => {
     setSelectedModelIds((prev) => {
@@ -421,6 +722,7 @@ export default function CompareModelsPageClient() {
 
   const removeModel = (modelId) => {
     setSelectedModelIds((prev) => prev.filter((id) => id !== modelId));
+    setPick((prev) => (prev === modelId ? null : prev));
   };
 
   const handleStop = () => {
@@ -434,6 +736,7 @@ export default function CompareModelsPageClient() {
     setSharedConversation([]);
     setColumns({});
     setLoadError("");
+    setPick(null);
   };
 
   // Stream one model's response into its own column. Errors stay local to the
@@ -453,14 +756,25 @@ export default function CompareModelsPageClient() {
     patchColumn({
       status: "streaming",
       text: "",
+      thinking: "",
       error: "",
+      hint: "",
+      kind: "",
+      startedAt,
       metrics: { ttftMs: null, totalMs: null, usage: null, cost: null },
     });
 
     let assistantText = "";
+    let reasoningText = "";
     let firstTokenAt = null;
     let usage = null;
-    let cost = null;
+    let reportedCost = null;
+    let finishReason = "";
+
+    const computeCost = () => {
+      if (reportedCost != null) return reportedCost;
+      return estimateCost(model, usage);
+    };
 
     try {
       const response = await fetch("/v1/chat/completions", {
@@ -488,11 +802,15 @@ export default function CompareModelsPageClient() {
         const data = await response.json().catch(() => ({}));
         const fallbackText = textValue(data?.choices?.[0]?.message?.content || data?.output_text || "");
         usage = readUsage(data);
-        cost = readCost(data);
+        reportedCost = readReportedCost(data);
+        finishReason = readFinishReason(data);
+        const kind = fallbackText ? "text" : "empty";
         patchColumn({
           status: "done",
           text: fallbackText,
-          metrics: { ttftMs: null, totalMs: performance.now() - startedAt, usage, cost },
+          kind,
+          hint: kind === "empty" ? describeEmptyResponse({ finishReason, usage, thinking: reasoningText }) : "",
+          metrics: { ttftMs: null, totalMs: performance.now() - startedAt, usage, cost: computeCost() },
         });
         return { modelId: model.id, text: fallbackText };
       }
@@ -519,22 +837,34 @@ export default function CompareModelsPageClient() {
             const chunk = JSON.parse(payload);
             const maybeUsage = readUsage(chunk);
             if (maybeUsage) usage = maybeUsage;
-            const maybeCost = readCost(chunk);
-            if (maybeCost != null) cost = maybeCost;
+            const maybeCost = readReportedCost(chunk);
+            if (maybeCost != null) reportedCost = maybeCost;
+            const maybeFinish = readFinishReason(chunk);
+            if (maybeFinish) finishReason = maybeFinish;
+
+            const reasoning = readReasoningText(chunk);
+            if (reasoning) {
+              if (firstTokenAt == null) firstTokenAt = performance.now();
+              reasoningText += reasoning;
+            }
 
             const text = readAssistantText(chunk);
-            if (!text) continue;
+            if (text) {
+              if (firstTokenAt == null) firstTokenAt = performance.now();
+              assistantText += text;
+            }
 
-            if (firstTokenAt == null) firstTokenAt = performance.now();
-            assistantText += text;
+            if (!text && !reasoning) continue;
+
             patchColumn({
               text: assistantText,
+              thinking: reasoningText,
               status: "streaming",
               metrics: {
                 ttftMs: firstTokenAt != null ? firstTokenAt - startedAt : null,
                 totalMs: performance.now() - startedAt,
                 usage,
-                cost,
+                cost: computeCost(),
               },
             });
           } catch {
@@ -543,14 +873,18 @@ export default function CompareModelsPageClient() {
         }
       }
 
+      const kind = assistantText.trim() ? "text" : reasoningText.trim() ? "thinking" : "empty";
       patchColumn({
         status: "done",
         text: assistantText,
+        thinking: reasoningText,
+        kind,
+        hint: kind === "empty" ? describeEmptyResponse({ finishReason, usage, thinking: reasoningText }) : "",
         metrics: {
           ttftMs: firstTokenAt != null ? firstTokenAt - startedAt : null,
           totalMs: performance.now() - startedAt,
           usage,
-          cost,
+          cost: computeCost(),
         },
       });
       return { modelId: model.id, text: assistantText };
@@ -558,14 +892,18 @@ export default function CompareModelsPageClient() {
       if (error.name === "AbortError") {
         patchColumn({
           status: "aborted",
-          metrics: { ttftMs: firstTokenAt != null ? firstTokenAt - startedAt : null, totalMs: performance.now() - startedAt, usage, cost },
+          text: assistantText,
+          thinking: reasoningText,
+          kind: assistantText ? "text" : reasoningText ? "thinking" : "empty",
+          hint: stoppedNote(assistantText, reasoningText),
+          metrics: { ttftMs: firstTokenAt != null ? firstTokenAt - startedAt : null, totalMs: performance.now() - startedAt, usage, cost: computeCost() },
         });
         return { modelId: model.id, text: assistantText };
       }
       patchColumn({
         status: "error",
         error: textValue(error?.message || error) || "Request failed.",
-        metrics: { ttftMs: firstTokenAt != null ? firstTokenAt - startedAt : null, totalMs: performance.now() - startedAt, usage, cost },
+        metrics: { ttftMs: firstTokenAt != null ? firstTokenAt - startedAt : null, totalMs: performance.now() - startedAt, usage, cost: computeCost() },
       });
       return { modelId: model.id, text: assistantText };
     }
@@ -591,6 +929,8 @@ export default function CompareModelsPageClient() {
     setDraft("");
     setIsSending(true);
     setLoadError("");
+    setPick(null);
+    setRunId((prev) => prev + 1);
     abortControllersRef.current = [];
 
     // Fan out one request per selected model in parallel; each streams into its
@@ -619,9 +959,7 @@ export default function CompareModelsPageClient() {
 
   const gridColsClass = selectedModels.length <= 1
     ? "lg:grid-cols-1"
-    : selectedModels.length === 2
-      ? "lg:grid-cols-2"
-      : "lg:grid-cols-3";
+    : "lg:grid-cols-2";
 
   return (
     <div className="relative flex-1 flex flex-col h-full min-h-0 min-w-0 bg-[#212121] text-white overflow-hidden">
@@ -635,8 +973,8 @@ export default function CompareModelsPageClient() {
                 onClick={() => setModelMenuOpen((value) => !value)}
                 className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:bg-white/8"
               >
-                <span className="material-symbols-outlined text-[18px] text-amber-300">compare_arrows</span>
-                <span className="text-sm font-semibold text-white">Add models</span>
+                <span className="material-symbols-outlined text-[18px] text-amber-300">swords</span>
+                <span className="text-sm font-semibold text-white">Add contenders</span>
                 <Badge size="sm" variant="default">{selectedModels.length}/{MAX_MODELS}</Badge>
                 <span className="material-symbols-outlined text-[18px] text-white/70">expand_more</span>
               </button>
@@ -689,8 +1027,9 @@ export default function CompareModelsPageClient() {
             </div>
 
             {/* Selected models as removable chips */}
-            {selectedModels.map((model) => (
+            {selectedModels.map((model, index) => (
               <span key={model.id} className="flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs text-white">
+                <span className="text-white/45">Contender {index + 1}</span>
                 <span className="max-w-[12rem] truncate">{model.name}</span>
                 <button type="button" onClick={() => removeModel(model.id)} className="text-white/55 hover:text-white" aria-label={`Remove ${model.name}`}>
                   <span className="material-symbols-outlined text-[16px]">close</span>
@@ -738,12 +1077,12 @@ export default function CompareModelsPageClient() {
               <div className="flex min-h-[50vh] items-center justify-center px-4 text-center">
                 <div className="max-w-xl space-y-4">
                   <div className="mx-auto flex size-16 items-center justify-center rounded-[20px] border border-white/10 bg-white/5 text-white/80">
-                    <span className="material-symbols-outlined text-[30px]">compare_arrows</span>
+                    <span className="material-symbols-outlined text-[30px]">swords</span>
                   </div>
                   <div className="space-y-2">
                     <h2 className="text-2xl font-semibold text-white">Compare models side-by-side</h2>
                     <p className="text-sm leading-6 text-white/60">
-                      Add a few models, type one prompt, and send it to all of them at once. Each response streams into its own column with latency and token usage.
+                      Add up to {MAX_MODELS} contenders, type one prompt, and send it to all of them at once. Each answer streams live with its time to first token, total latency, token usage and cost, then a Final Result card ranks them on speed and spend.
                     </p>
                     {apiKeys.length === 0 ? (
                       <p className="text-sm leading-6 text-white/60">
@@ -758,57 +1097,100 @@ export default function CompareModelsPageClient() {
                 </div>
               </div>
             ) : (
-              <div className={`grid grid-cols-1 gap-4 ${gridColsClass}`}>
-                {selectedModels.map((model) => {
-                  const column = columns[model.id] || {};
-                  const status = column.status || "idle";
-                  const meta = STATUS_META[status] || STATUS_META.idle;
-                  const metrics = column.metrics || {};
-                  const usage = metrics.usage;
-                  const costLabel = formatCost(metrics.cost);
-                  return (
-                    <div key={model.id} className="flex min-h-[40vh] flex-col overflow-hidden rounded-[20px] border border-white/10 bg-[#2f2f2f]">
-                      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white">{model.name}</p>
-                          <p className="truncate text-[11px] text-white/45">{model.providerName}</p>
+              <div className="flex flex-col gap-4">
+                {ranked.length > 1 ? (
+                  <FinalResult ranked={ranked} pick={pick} setPick={setPick} runId={runId} />
+                ) : null}
+
+                <div className={`grid grid-cols-1 gap-4 ${gridColsClass}`}>
+                  {selectedModels.map((model, index) => {
+                    const column = columns[model.id] || {};
+                    const status = column.status || "idle";
+                    const meta = STATUS_META[status] || STATUS_META.idle;
+                    const metrics = column.metrics || {};
+                    const usage = metrics.usage;
+                    const costLabel = metrics.cost != null ? showCost(metrics.cost) : null;
+                    const streaming = status === "streaming";
+                    return (
+                      <div key={model.id} className="flex min-h-[40vh] flex-col overflow-hidden rounded-[20px] border border-white/10 bg-[#2f2f2f]">
+                        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-[11px] text-white/45">Contender {index + 1} · {model.providerName}</p>
+                            <p className="truncate text-sm font-semibold text-white">{model.name}</p>
+                          </div>
+                          {streaming ? (
+                            <Elapsed startedAt={column.startedAt} />
+                          ) : (
+                            <span className={`flex items-center gap-1 text-[11px] font-medium ${meta.color}`}>
+                              <span className="material-symbols-outlined text-[14px]">{meta.icon}</span>
+                              {status === "done" && metrics.totalMs != null ? formatMs(metrics.totalMs) : meta.label}
+                            </span>
+                          )}
                         </div>
-                        <span className={`flex items-center gap-1 text-[11px] font-medium ${meta.color}`}>
-                          <span className="material-symbols-outlined text-[14px]">{meta.icon}</span>
-                          {meta.label}
-                        </span>
-                      </div>
 
-                      <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
-                        {status === "error" ? (
-                          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-rose-200">{column.error || "Request failed."}</p>
-                        ) : column.text ? (
-                          <p className="whitespace-pre-wrap break-words text-[14px] leading-7 text-white/90">
-                            {column.text}
-                            {status === "streaming" ? <span className="inline-block animate-pulse">▋</span> : null}
-                          </p>
-                        ) : status === "streaming" ? (
-                          <span className="inline-block animate-pulse text-white/60">▋</span>
-                        ) : (
-                          <p className="text-sm text-white/35">No response yet.</p>
-                        )}
-                      </div>
+                        <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
+                          {status === "error" ? (
+                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-rose-200">{column.error || "Request failed."}</p>
+                          ) : streaming && !column.text && !column.thinking ? (
+                            <div className="flex h-40 flex-col items-center justify-center gap-3 text-white/55">
+                              <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+                              <span className="text-sm">Waiting for the first token…</span>
+                            </div>
+                          ) : column.text || column.thinking ? (
+                            <div className="flex flex-col gap-2">
+                              {column.text ? (
+                                <p className="whitespace-pre-wrap break-words text-[14px] leading-7 text-white/90">
+                                  {column.text}
+                                  {streaming ? <span className="inline-block animate-pulse">▋</span> : null}
+                                </p>
+                              ) : column.thinking && (streaming || column.kind === "thinking") ? (
+                                <div className="flex flex-col gap-1.5">
+                                  {!streaming ? <p className="text-[11px] text-white/45">Only reasoning came back, with no final answer.</p> : null}
+                                  <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-6 text-white/75">
+                                    {column.thinking}
+                                    {streaming ? <span className="inline-block animate-pulse">▋</span> : null}
+                                  </pre>
+                                </div>
+                              ) : null}
+                              {column.text && column.thinking ? (
+                                <details className="min-w-0">
+                                  <summary className="cursor-pointer text-[11px] text-white/45 hover:text-amber-300">Show the reasoning behind this answer</summary>
+                                  <pre className="mt-1 max-h-40 overflow-auto custom-scrollbar whitespace-pre-wrap break-words rounded-[12px] border border-white/10 bg-black/20 p-2 text-[11px] text-white/60">
+                                    {column.thinking}
+                                  </pre>
+                                </details>
+                              ) : null}
+                            </div>
+                          ) : column.kind === "empty" ? (
+                            <div className="flex flex-col gap-1.5">
+                              <p className="break-words text-sm text-amber-300">{column.hint || describeEmptyResponse({})}</p>
+                              {status !== "aborted" ? <p className="text-[11px] text-white/45">The provider answered with HTTP 200 and nothing inside.</p> : null}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-white/35">No response yet.</p>
+                          )}
 
-                      {/* Per-column metrics */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-4 py-2 text-[11px] text-white/55">
-                        <span title="Time to first token">TTFT {formatMs(metrics.ttftMs)}</span>
-                        <span title="Total time">Total {formatMs(metrics.totalMs)}</span>
-                        {usage ? (
-                          <span title="Token usage">
-                            {usage.total != null ? `${usage.total} tok` : null}
-                            {usage.prompt != null && usage.completion != null ? ` (${usage.prompt}+${usage.completion})` : null}
-                          </span>
-                        ) : null}
-                        {costLabel ? <span title="Cost">{costLabel}</span> : null}
+                          {status === "aborted" && column.kind !== "empty" && column.hint ? (
+                            <p className="mt-2 break-words text-[11px] text-amber-300">{column.hint}</p>
+                          ) : null}
+                        </div>
+
+                        {/* Per-column metrics */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-4 py-2 text-[11px] text-white/55">
+                          <span title="Time to first token">first token {formatMs(metrics.ttftMs)}</span>
+                          <span title="Total time">total {formatMs(metrics.totalMs)}</span>
+                          {usage ? (
+                            <span title="Token usage">
+                              {usage.total != null ? `${usage.total} tok` : null}
+                              {usage.prompt != null && usage.completion != null ? ` (${usage.prompt}+${usage.completion})` : null}
+                            </span>
+                          ) : null}
+                          {costLabel ? <span title="Estimated cost">~{costLabel}</span> : null}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -821,14 +1203,14 @@ export default function CompareModelsPageClient() {
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={selectedModels.length === 0 ? "Add at least one model to compare" : "Message all selected models"}
+                  placeholder={selectedModels.length === 0 ? "Add at least one contender to compare" : "Message all selected models"}
                   rows={1}
                   className="w-full resize-none bg-transparent px-2 text-[15px] leading-6 text-white outline-none placeholder:text-white/40 custom-scrollbar max-h-[25vh] overflow-y-auto"
                 />
 
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <span className="text-xs font-medium text-white/30 truncate max-w-[220px]">
-                    {selectedModels.length > 0 ? `${selectedModels.length} model${selectedModels.length > 1 ? "s" : ""} selected` : "No models"}
+                    {selectedModels.length > 0 ? `${selectedModels.length} contender${selectedModels.length > 1 ? "s" : ""}` : "No contenders"}
                   </span>
 
                   <div className="flex items-center gap-2">
@@ -846,7 +1228,7 @@ export default function CompareModelsPageClient() {
             </div>
 
             <p className="mx-auto mt-2 max-w-3xl px-4 pb-4 text-center text-[11px] text-white/30">
-              One prompt fans out to every selected model in parallel. Stop cancels all in-flight requests.
+              One prompt fans out to every selected model in parallel. Stop cancels all in-flight requests and keeps whatever already streamed.
             </p>
           </div>
         </div>
