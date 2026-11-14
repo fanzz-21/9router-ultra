@@ -1,0 +1,128 @@
+name: Live Preview (Cloudflare Tunnel)
+
+# Manually-triggered ephemeral preview of 9Router Ultra.
+# Builds the app, starts the production server, opens a Cloudflare Quick Tunnel,
+# and prints a public https://*.trycloudflare.com URL in the job log.
+#
+# NOTE: This is a TEMPORARY preview, not permanent hosting.
+#  - A workflow run lasts at most ~6 hours (GitHub hard limit), then the URL dies.
+#  - The trycloudflare.com URL is random and changes on every run.
+#  - SQLite data under DATA_DIR is thrown away when the run ends.
+# Use the `duration_minutes` input to control how long the tunnel stays open.
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: "How long to keep the tunnel open (max 350 — the job hard-stops at 360 min)"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    # +10 min of headroom over the requested duration; GitHub still caps the job at 360 min.
+    timeout-minutes: 360
+    env:
+      PORT: "20127"
+      HOSTNAME: "127.0.0.1"
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATA_DIR: ${{ github.workspace }}/.preview-data
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Install cloudflared
+        run: |
+          curl -fsSL -o /usr/local/bin/cloudflared \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x /usr/local/bin/cloudflared
+          cloudflared --version
+
+      - name: Start server
+        run: |
+          mkdir -p "$DATA_DIR"
+          nohup node custom-server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+          echo "Waiting for the server to become healthy..."
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+              echo "✅ Server is healthy after ${i}s"
+              break
+            fi
+            sleep 1
+            if [ "$i" -eq 60 ]; then
+              echo "::error::Server did not become healthy in 60s"
+              echo "----- server.log -----"; cat "$RUNNER_TEMP/server.log" || true
+              exit 1
+            fi
+          done
+
+      - name: Open Cloudflare tunnel and print URL
+        run: |
+          cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${PORT}" \
+            > "$RUNNER_TEMP/cf.log" 2>&1 &
+          echo "CF_PID=$!" >> "$GITHUB_ENV"
+
+          URL=""
+          for i in $(seq 1 60); do
+            URL=$(grep -Eo "https://[a-z0-9-]+\.trycloudflare\.com" "$RUNNER_TEMP/cf.log" | head -1 || true)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+
+          if [ -z "$URL" ]; then
+            echo "::error::Could not obtain a tunnel URL"
+            echo "----- cf.log -----"; cat "$RUNNER_TEMP/cf.log" || true
+            exit 1
+          fi
+
+          # Verify the tunnel actually reaches the app
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 25 "$URL/api/health" || echo "000")
+
+          {
+            echo "## 🚀 9Router Ultra — Live Preview"
+            echo ""
+            echo "**Public URL:** [$URL]($URL)"
+            echo ""
+            echo "- Dashboard: [$URL/dashboard]($URL/dashboard)"
+            echo "- Compare Models: [$URL/dashboard/compare]($URL/dashboard/compare)"
+            echo "- Health check returned: \`HTTP $CODE\`"
+            echo ""
+            echo "> ⚠️ Temporary preview. It dies when this run ends (duration or the 6h job limit)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "=================================================="
+          echo "  PUBLIC URL: $URL   (health: HTTP $CODE)"
+          echo "=================================================="
+
+      - name: Keep tunnel open
+        run: |
+          REQ="${{ github.event.inputs.duration_minutes }}"
+          REQ="${REQ:-60}"
+          # Clamp to a safe max below the 360-min job cap.
+          if [ "$REQ" -gt 350 ] 2>/dev/null; then REQ=350; fi
+          echo "Holding the tunnel open for ${REQ} minute(s). Cancel the run to stop early."
+          sleep "$((REQ * 60))"
+
+      - name: Shut down
+        if: always()
+        run: |
+          kill "${CF_PID:-0}" 2>/dev/null || true
+          kill "${SERVER_PID:-0}" 2>/dev/null || true
+          echo "Preview stopped."
