@@ -113,7 +113,7 @@ docker pull decolua/9router:0.5.81
 ## Build image locally (test)
 
 ```bash
-DOCKER_BUILDKIT=1 docker build -t 9router .
+docker build -t 9router .
 
 docker run --rm -p 20127:20127 \
   -v "$HOME/.9router:/app/data" \
@@ -121,16 +121,14 @@ docker run --rm -p 20127:20127 \
   9router
 ```
 
-> **BuildKit is required.** The builder stage speeds up dependency installs with a
-> `RUN --mount=type=cache,target=/root/.npm` cache mount, which only works under
-> BuildKit. Modern Docker enables BuildKit by default, so plain `docker build` works;
-> set `DOCKER_BUILDKIT=1` explicitly on older Docker or when the legacy builder is
-> forced. CaptainDuckDuck (via `captain-definition`) also builds with BuildKit.
+> The Dockerfile uses only standard instructions, so a plain `docker build` works
+> everywhere: Railway, plain Docker, BuildKit, and CaptainDuckDuck (via
+> `captain-definition`). No BuildKit-specific flags are required.
 
 The Dockerfile uses the official Alpine and npm registries by default. Regional mirrors can be supplied when needed:
 
 ```bash
-DOCKER_BUILDKIT=1 docker build \
+docker build \
   --build-arg ALPINE_MIRROR=mirrors.aliyun.com \
   --build-arg NPM_REGISTRY=https://registry.npmmirror.com/ \
   -t 9router .
