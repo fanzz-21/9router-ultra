@@ -20,14 +20,10 @@ ARG NPM_REGISTRY
 RUN apk add --no-cache python3 make g++ linux-headers
 
 COPY package.json ./
-# BuildKit cache mount keeps the npm cache warm across builds. The install pins
-# its cache to /root/.npm so it matches the mount target regardless of HOME or
-# the active user, and sharing=locked keeps concurrent/multi-platform builds
-# from corrupting the shared cache. Requires BuildKit (DOCKER_BUILDKIT=1, the
-# default on modern Docker and used by CaptainDuckDuck via captain-definition).
-RUN --mount=type=cache,id=npm-cache,target=/root/.npm,sharing=locked \
-    npm install \
-      --cache=/root/.npm \
+# Install dependencies. The fetch-retry/timeout flags keep installs resilient on
+# slow or flaky networks. A plain RUN (no BuildKit cache mount) keeps the build
+# portable across Railway, plain Docker, BuildKit, and CaptainDuckDuck.
+RUN npm install \
       --registry="${NPM_REGISTRY}" \
       --fetch-retries=5 \
       --fetch-retry-factor=2 \
