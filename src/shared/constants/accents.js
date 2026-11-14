@@ -1,4 +1,4 @@
-// 9Router Pro — dashboard accent themes.
+// 9Router Ultimate — dashboard accent themes.
 // Each accent only overrides the --color-brand-* scale (see globals.css);
 // "coral" is the original upstream palette (no data-accent attribute).
 export const ACCENTS = [
@@ -13,7 +13,7 @@ export const ACCENTS = [
 
 export const ACCENT_STORAGE_KEY = "9rp-accent";
 export const DEFAULT_ACCENT = "coral";
-// 9Router Pro signature: fresh installs open in violet (the Pro identity);
+// 9Router Ultimate signature: fresh installs open in violet (the Pro identity);
 // picking Coral restores the exact original upstream palette.
 export const PRO_DEFAULT_ACCENT = "violet";
 
@@ -38,7 +38,7 @@ export function applyAccent(id) {
   }
 }
 
-// 9Router Pro: free-form custom accent. The whole brand scale is derived in
+// 9Router Ultimate: free-form custom accent. The whole brand scale is derived in
 // CSS from a single base color (--color-brand-base, see globals.css), so any
 // color the user picks with the slider/picker in the header menu just works.
 export const CUSTOM_ACCENT_ID = "custom";

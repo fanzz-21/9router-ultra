@@ -1,7 +1,7 @@
 import PromptInjectionClient from "./PromptInjectionClient";
 
 export const metadata = {
-  title: "Prompt Injection | 9Router Pro",
+  title: "Prompt Injection | 9Router Ultimate",
   description: "Prompt templates and injections by target — global, per API key, per variant, per model+key: a single system prompt or a scripted chat, stacked least to most specific.",
 };
 

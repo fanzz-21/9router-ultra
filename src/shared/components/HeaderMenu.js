@@ -46,7 +46,7 @@ export default function HeaderMenu({ onLogout }) {
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const menuRef = useRef(null);
 
-  // 9Router Pro: the accent picker lives in this menu now — it used to be
+  // 9Router Ultimate: the accent picker lives in this menu now — it used to be
   // a palette popover in the header bar. The theme itself is a single
   // default (dark neumorphism); there is no preset or light/dark switch.
   const [accent, setAccent] = useState(PRO_DEFAULT_ACCENT);

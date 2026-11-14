@@ -1,4 +1,4 @@
-// Brief Mode (9Router Pro) — per-scope output-terseness levels riding on
+// Brief Mode (9Router Ultimate) — per-scope output-terseness levels riding on
 // the Caveman injector. One level per target, resolved model → key →
 // global (first hit wins, NOT stacked like prompt injections):
 //   scope "briefMode": key "global" → level string

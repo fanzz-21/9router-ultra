@@ -1,5 +1,5 @@
 // Parse one raw console line (as captured by consoleLogBuffer) into the
-// parts the Console Log panel renders MatLog-style (9Router Pro): time,
+// parts the Console Log panel renders MatLog-style (9Router Ultimate): time,
 // level badge, short tag, session dot, message. The logger's line shapes:
 //
 //   [23:13:18] ℹ️  [COMBO] trying model 1 of 2: ...

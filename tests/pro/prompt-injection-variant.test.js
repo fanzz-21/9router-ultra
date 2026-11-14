@@ -1,4 +1,4 @@
-// 9Router Pro — Prompt Injection variant tests (vitest).
+// 9Router Ultimate — Prompt Injection variant tests (vitest).
 // A variant is a custom-named model: picking the variant serves its
 // backing provider/model WITH the prompt; picking the raw model serves
 // it WITHOUT any prompt. Variant names route directly (dispatch checks

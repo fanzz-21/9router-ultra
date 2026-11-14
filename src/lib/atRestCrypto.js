@@ -1,4 +1,4 @@
-// At-rest credential encryption (R6, 9Router Pro, original code).
+// At-rest credential encryption (R6, 9Router Ultimate, original code).
 // AES-256-GCM over the sensitive fields of a connection's stored `data`
 // JSON (API keys, OAuth access/refresh/id tokens, client secrets).
 // Key: env PRO_CREDENTIAL_KEY — 64 hex chars or base64 of 32 bytes.

@@ -76,7 +76,7 @@ export {
   getMitmAlias, setMitmAliasAll,
 } from "./repos/aliasRepo.js";
 
-// Prompt Injection (9Router Pro) — target-coordinate injections + templates
+// Prompt Injection (9Router Ultimate) — target-coordinate injections + templates
 export {
   getInjectModelPrompts, setInjectModelPrompt, deleteInjectModelPrompt,
   getInjectUserPrompts, setInjectUserPrompt, deleteInjectUserPrompt,
@@ -86,13 +86,13 @@ export {
   getPromptTemplates, upsertPromptTemplate, deletePromptTemplate,
 } from "./repos/promptInjectRepo.js";
 
-// Key Quotas (9Router Pro)
+// Key Quotas (9Router Ultimate)
 export {
   getKeyQuota, getAllKeyQuotas, setKeyQuota, deleteKeyQuota,
   getKeyUsageInWindow, getKeyCostInWindow, checkKeyQuota,
 } from "./repos/keyQuotaRepo.js";
 
-// Key Limits (9Router Pro) — per-key RPM/TPM/RPH/RPD/concurrency config
+// Key Limits (9Router Ultimate) — per-key RPM/TPM/RPH/RPD/concurrency config
 export {
   getKeyLimits, getAllKeyLimits, setKeyLimits, deleteKeyLimits,
   cleanKeyLimits, LIMIT_FIELDS,

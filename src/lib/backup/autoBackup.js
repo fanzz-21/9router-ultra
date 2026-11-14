@@ -1,4 +1,4 @@
-// 9Router Pro — automatic backups: full JSON snapshots of the database
+// 9Router Ultimate — automatic backups: full JSON snapshots of the database
 // export, stored in DATA_DIR/auto-backups with a small index so the
 // Settings page can list them without parsing every file. A scheduler
 // takes one snapshot a day (settings: autoBackupEnabled / autoBackupKeep);

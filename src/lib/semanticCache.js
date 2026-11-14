@@ -1,4 +1,4 @@
-// Semantic (similar-prompt) cache (R13, 9Router Pro, original code).
+// Semantic (similar-prompt) cache (R13, 9Router Ultimate, original code).
 // Sits ON TOP of the exact cache in src/lib/responseCache.js: only for
 // requests the exact cache would accept (non-streaming chat, no tools),
 // plus two hard guards — opt-in only (settings.responseCache.semantic)

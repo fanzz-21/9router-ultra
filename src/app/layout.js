@@ -16,7 +16,7 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-// 9Router Pro: extra display fonts used ONLY by the header display name
+// 9Router Ultimate: extra display fonts used ONLY by the header display name
 // (see shared/constants/nameStyles.js). Self-hosted by next/font.
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -61,7 +61,7 @@ const nunito = Nunito({
 });
 
 export const metadata = {
-  title: "9Router Pro - AI Infrastructure Management",
+  title: "9Router Ultimate - AI Infrastructure Management",
   description: "One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.",
   icons: {
     icon: "/favicon.svg",
@@ -84,13 +84,13 @@ export default function RootLayout({ children }) {
             __html: `(function(){try{var s=localStorage.getItem('theme');var t=s?(JSON.parse(s).state||{}).theme:'system';t=t||'system';var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(t==='system'&&m)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
           }}
         />
-        {/* 9Router Pro: apply the saved accent before first paint (no flash). */}
+        {/* 9Router Ultimate: apply the saved accent before first paint (no flash). */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var a=localStorage.getItem('9rp-accent');if(a==='custom'){var c=localStorage.getItem('9rp-accent-custom');document.documentElement.setAttribute('data-accent','custom');if(c&&/^#[0-9a-fA-F]{6}$/.test(c)){document.documentElement.style.setProperty('--color-brand-base',c)}}else if(a){if(a!=='coral'){document.documentElement.setAttribute('data-accent',a)}}else{document.documentElement.setAttribute('data-accent','violet')}}catch(e){}})();`,
           }}
         />
-        {/* 9Router Pro: dark-only default before first paint (no flash).
+        {/* 9Router Ultimate: dark-only default before first paint (no flash).
             Also clears the retired preset choice (ori/dark-pro). */}
         <script
           dangerouslySetInnerHTML={{

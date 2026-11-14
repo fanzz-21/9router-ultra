@@ -249,7 +249,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     const showThinking = provider !== "grok-cli" || supportsGrokCliReasoningEffort(model);
     const think = showThinking ? log.fmtThink?.(extractThinking(translatedBody)) : null;
     const acc = credentials?.connectionName || credentials?.connectionId?.slice(0, 8) || "-";
-    // Plain-words request line (9Router Pro): only the facts an operator
+    // Plain-words request line (9Router Ultimate): only the facts an operator
     // needs — what was asked, which key serves it, how big the ask is.
     // Format conversion is noise unless the format actually changes.
     const parts = [`POST ${clientModel} → ${provider}/${model}`];
@@ -316,7 +316,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     xf.push(`ponytail ${ponytailLevel}`);
   }
 
-  // Prompt Injection (9Router Pro): injections resolved by the caller —
+  // Prompt Injection (9Router Ultimate): injections resolved by the caller —
   // global → user (API key) → model. Independent of the token savers.
   // "single" entries are grouped into one injector pass per position:
   // joining same-position texts with "\n\n" produces the identical prompt
@@ -466,7 +466,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     }
     const errMsg = formatProviderError(error, provider, model, HTTP_STATUS.BAD_GATEWAY);
     if (log?.errorLine) {
-      // One line, plain words (9Router Pro): status + what it means + how
+      // One line, plain words (9Router Ultimate): status + what it means + how
       // long it took. The raw detail stays available on the debug level;
       // a stack trace never belongs in the operator's face.
       const detail = log.plainErrorDetail?.(errMsg) || "";
@@ -542,7 +542,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
     const errMsg = formatProviderError(new Error(message), provider, model, statusCode);
     if (log?.errorLine) {
-      // One line, plain words (9Router Pro): status + what it means + how
+      // One line, plain words (9Router Ultimate): status + what it means + how
       // long it took + the upstream's reason in plain words (never raw
       // JSON). The upstream URL is a per-provider constant — repeating
       // it on every failure is noise.

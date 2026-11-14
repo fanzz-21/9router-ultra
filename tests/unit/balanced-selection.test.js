@@ -1,4 +1,4 @@
-// Balanced selection (9Router Pro): health tiers keep recently-failed
+// Balanced selection (9Router Ultimate): health tiers keep recently-failed
 // accounts in reserve without deleting them, the windowed LRU pick spreads
 // load without a deterministic hot spot, and the "unavailable" dashboard
 // label is gated on a substantial cooldown so short transients cannot

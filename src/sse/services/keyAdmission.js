@@ -1,4 +1,4 @@
-// Shared per-key admission for every modality handler (9Router Pro).
+// Shared per-key admission for every modality handler (9Router Ultimate).
 // Before, only the chat handler enforced rate limits and the token budget;
 // a restricted key could bypass both through embeddings, images, TTS, STT,
 // search, fetch, video, or systemone. Every handler now enters through

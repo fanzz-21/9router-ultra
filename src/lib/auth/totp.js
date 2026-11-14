@@ -95,8 +95,8 @@ export function hashBackupCode(code) {
   return createHash("sha256").update(String(code).replace(/[\s-]/g, "").toUpperCase()).digest("hex");
 }
 
-export function otpauthUrl(secret, account = "9Router Pro") {
-  const issuer = "9Router Pro";
+export function otpauthUrl(secret, account = "9Router Ultimate") {
+  const issuer = "9Router Ultimate";
   return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 }
 

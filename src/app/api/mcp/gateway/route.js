@@ -1,4 +1,4 @@
-// Gateway MCP server (R5, 9Router Pro, original code) — Streamable-HTTP
+// Gateway MCP server (R5, 9Router Ultimate, original code) — Streamable-HTTP
 // JSON-RPC at /api/mcp/gateway. Read-only tools only: an agent can inspect
 // routing, providers, combos and health, but cannot change anything.
 // Mutating tools are deliberately NOT shipped: they would need an explicit

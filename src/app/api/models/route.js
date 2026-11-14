@@ -6,7 +6,7 @@ import { getProviderAlias, ALIAS_TO_ID } from "@/shared/constants/providers";
 import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
 import { sanitizeModelCapsOverride } from "@/shared/constants/models";
 
-// 9Router Pro: the catalog is near-static (constants + aliases + disabled +
+// 9Router Ultimate: the catalog is near-static (constants + aliases + disabled +
 // custom rows) but ~320KB to build and ship — cache the payload for 30s so
 // dashboard loads after the first are instant. Alias/disabled/custom edits
 // show up within the TTL.

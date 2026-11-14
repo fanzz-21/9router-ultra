@@ -1,6 +1,6 @@
 "use client";
 
-// Token Saver Pro (9Router Pro): savings stats from real RTK traffic,
+// Token Saver Pro (9Router Ultimate): savings stats from real RTK traffic,
 // a test bench running the real RTK pipeline, and Brief Mode —
 // per-scope Caveman levels (global / per API key / per model).
 

@@ -63,7 +63,7 @@ export default function Sidebar({ onClose }) {
   // version check already knows it; otherwise fall back to registry latest. Never a
   // GitHub install — master lags the release, so it would land users on the old version.
   const INSTALL_CMD = updateInfo?.latestVersion
-    ? `npm i -g 9router-pro@${updateInfo.latestVersion} --prefer-online`
+    ? `npm i -g 9router-ultimate@${updateInfo.latestVersion} --prefer-online`
     : UPDATER_CONFIG.installCmdLatest;
 
   useEffect(() => {
@@ -148,7 +148,7 @@ export default function Sidebar({ onClose }) {
 
           <span className="ml-auto flex items-center gap-2.5">
             <span className="text-[11px] leading-tight whitespace-nowrap text-text-subtle">
-              Modder by <span className="font-semibold text-brand-500">Gienetic</span>
+              9Router Ultimate
             </span>
             <ModderSocials />
           </span>
@@ -409,7 +409,7 @@ export default function Sidebar({ onClose }) {
 
             {/* Docs & Help */}
             <a
-              href="https://github.com/giienew/9router-pro#-quick-start-pro"
+              href="https://github.com/fanzz-21/9router-ultra#readme"
               target="_blank"
               rel="noreferrer"
               onClick={onClose}
@@ -435,7 +435,7 @@ export default function Sidebar({ onClose }) {
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
         onConfirm={handleUpdate}
-        title="Update 9Router Pro"
+        title="Update 9Router Ultimate"
         message={`Show install command for v${updateInfo?.latestVersion || ""}? You can copy it and shutdown to install manually.`}
         confirmText="Show Command"
         cancelText="Cancel"
@@ -486,7 +486,7 @@ function ManualUpdatePanel({ latestVersion, installCmd, copied, onCopyAndShutdow
           <span className="material-symbols-outlined text-[24px]">content_copy</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold">Update 9Router Pro{latestVersion ? ` to v${latestVersion}` : ""}</h2>
+          <h2 className="text-lg font-semibold">Update 9Router Ultimate{latestVersion ? ` to v${latestVersion}` : ""}</h2>
           <p className="text-xs text-white/60">
             {isDisconnected
               ? "Server stopped. Paste the command into a terminal to install."

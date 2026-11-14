@@ -20,7 +20,7 @@ const QUOTA_WINDOWS = [
   { hours: 720, label: "30 days" },
 ];
 
-// 9Router Pro: per-key rate limits (for reselling). Empty field = unlimited.
+// 9Router Ultimate: per-key rate limits (for reselling). Empty field = unlimited.
 const LIMIT_FIELDS_UI = [
   { field: "rpm", label: "Requests / min" },
   { field: "tpm", label: "Tokens / min" },

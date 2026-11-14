@@ -1,4 +1,4 @@
-// Key Rate Limiter (9Router Pro) — in-memory per-API-key admission control
+// Key Rate Limiter (9Router Ultimate) — in-memory per-API-key admission control
 // for the seller limits (requests per minute/hour/day + max concurrent).
 // State is process-local by design: windows reset on restart, which matches
 // how rate limiters are expected to behave; the durable budget control stays

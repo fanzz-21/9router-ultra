@@ -1,4 +1,4 @@
-// 9Router Pro — Key Limits tests: config cleaning + the in-memory rate
+// 9Router Ultimate — Key Limits tests: config cleaning + the in-memory rate
 // limiter (RPM/RPH/RPD windows, concurrency slots). Pure logic, explicit
 // clocks. Run: npx vitest run pro/key-limits.test.js
 import assert from "node:assert";

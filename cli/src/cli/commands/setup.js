@@ -82,7 +82,7 @@ async function run(argv) {
   }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  console.log("\n9Router Pro setup — guided wizard (nothing is written until you confirm).\n");
+  console.log("\n9Router Ultimate setup — guided wizard (nothing is written until you confirm).\n");
   let port = opts.port;
   if (!port) {
     const answer = await ask(rl, "Server port [3000]: ");

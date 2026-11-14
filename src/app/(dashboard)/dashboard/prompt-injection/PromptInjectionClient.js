@@ -1162,7 +1162,7 @@ export default function PromptInjectionClient() {
       const res = await fetch(API);
       const data = await res.json();
       const blob = new Blob(
-        [JSON.stringify({ app: "9router-pro", kind: "prompt-injections", version: 2, ...data }, null, 2)],
+        [JSON.stringify({ app: "9router-ultimate", kind: "prompt-injections", version: 2, ...data }, null, 2)],
         { type: "application/json" }
       );
       const a = document.createElement("a");

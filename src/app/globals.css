@@ -125,7 +125,7 @@
 }
 
 /* ============================================================
-   9Router Pro — accent themes (data-accent on <html>)
+   9Router Ultimate — accent themes (data-accent on <html>)
    Overrides ONLY the brand scale + brand-tinted shadows, so an
    accent costs zero extra CSS in components and works in both
    light and dark mode. Default (no attribute) = original coral.
@@ -235,7 +235,7 @@ input[type="range"].hue-slider::-moz-range-thumb {
 }
 
 /* ============================================================
-   9Router Pro — Neumorphism default (dark only, owner order 2026-11-02,
+   9Router Ultimate — Neumorphism default (dark only, owner order 2026-11-02,
    refined same day: FLOATING, not embossed).
    Premium floating slabs: lighter-than-page surface + thin uniform rim
    + one big soft drop shadow below — the slab hovers above the

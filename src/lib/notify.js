@@ -1,4 +1,4 @@
-// Outbound notifications (9Router Pro): Telegram bot + generic webhook.
+// Outbound notifications (9Router Ultimate): Telegram bot + generic webhook.
 // One place for every outbound alert. Fail-open by design: a dead channel
 // must never break the request or job that triggered the alert, and tokens
 // are never logged or returned to the dashboard (see getNotifyStatus).
@@ -82,7 +82,7 @@ export async function getNotifyStatus() {
 }
 
 export function buildNotifyText(event, data = {}) {
-  const lines = [`[9Router Pro] ${event}`];
+  const lines = [`[9Router Ultimate] ${event}`];
   if (data.title) lines.push(data.title);
   if (data.detail) lines.push(String(data.detail));
   if (data.model) lines.push(`model: ${data.model}`);

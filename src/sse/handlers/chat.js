@@ -348,7 +348,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
   let lastError = null;
   let lastStatus = null;
   let lastHeaders = null;
-  // Anti-Flaky Guard (9Router Pro): retries spent on 200-but-garbage
+  // Anti-Flaky Guard (9Router Ultimate): retries spent on 200-but-garbage
   // responses, plus the last such response as a rescue if the pool runs
   // out before a clean answer shows up.
   let flakyAttempts = 0;
@@ -395,7 +395,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // Use shared chatCore
     const chatSettings = await getSettings();
     const providerThinking = (chatSettings.providerThinking || {})[provider] || null;
-    // Prompt Injection (9Router Pro): global → the API key's → the
+    // Prompt Injection (9Router Ultimate): global → the API key's → the
     // variant's (matched by the bare custom name the user requested) →
     // the model+key's (matched by resolved provider/model). A variant
     // pick suppresses the model scopes, so the raw model name is never
@@ -408,7 +408,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       resolvedModel: `${provider}/${model}`,
       bareModel: model,
     });
-    // Prompt Injection usage stats (9Router Pro): buffered, fail-open,
+    // Prompt Injection usage stats (9Router Ultimate): buffered, fail-open,
     // coordinate keys + scopes only — never prompt text. A lone
     // model-scope entry is ambiguous (plain model vs model+key), so only
     // then is the request key's model+key map read, once. The variant
@@ -437,7 +437,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // a variant) carries that variant's sampling params, overriding the
     // client's defaults for this request only. Prompt text untouched.
     const variantSampling = await resolveVariantSampling(injectModelName || requestedModel || modelStr).catch(() => null);
-    // Brief Mode (9Router Pro): per-scope terseness level, same context.
+    // Brief Mode (9Router Ultimate): per-scope terseness level, same context.
     const briefLevel = await resolveBriefLevel({
       apiKeyId: injectKeyRecord?.id || null,
       requestedModel: injectModelName || requestedModel || modelStr,
@@ -494,7 +494,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     });
 
     if (result.success) {
-      // Anti-Flaky Guard (9Router Pro): an HTTP 200 whose body is empty
+      // Anti-Flaky Guard (9Router Ultimate): an HTTP 200 whose body is empty
       // or a degenerate repetition loop is retried on another account
       // instead of reaching the client. Fail-open: retries are capped by
       // settings, the account is NOT marked unavailable (the upstream

@@ -1,4 +1,4 @@
-// Shared combo dispatch (9Router Pro, P4-33 consolidation).
+// Shared combo dispatch (9Router Ultimate, P4-33 consolidation).
 // The top-level combo branch, the nested combo branch (a combo member that
 // is itself a combo, reached via handleSingleModelChat), and the solo
 // capacity-adapter branch in src/sse/handlers/chat.js used to duplicate

@@ -3,7 +3,7 @@ import {
   getBriefModes, setBriefGlobal, setBriefForKey, setBriefForModel,
 } from "@/lib/localDb";
 
-// Brief Mode (9Router Pro) — per-scope Caveman levels.
+// Brief Mode (9Router Ultimate) — per-scope Caveman levels.
 // GET    /api/token-saver/brief            → { global, byKey, byModel }
 // PUT    /api/token-saver/brief            → { global: level|null }
 //                                          | { keyId, level|null }

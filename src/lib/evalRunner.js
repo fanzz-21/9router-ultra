@@ -1,4 +1,4 @@
-// Golden-set eval runner (R14, 9Router Pro, original code).
+// Golden-set eval runner (R14, 9Router Ultimate, original code).
 // NOT a side-by-side chat page and NOT Testing Studio: a saved prompt set
 // with expected outputs is run through the router and scored per model.
 // Scoring is deliberately dumb and auditable: PASS = the model answer

@@ -217,7 +217,7 @@ function killProcessOnPort(port, { exec: execFn = DEFAULT_EXEC, platform = proce
 // BUG IT FIXES (found by the TUI/hide smoke test, 2026-11-12): the old
 // inline check matched any line containing the substrings "node" +
 // "9router" + "cli.js". A launcher whose argv merely *mentions* the CLI
-// path — e.g. `python3 tui_driver.py ... lib/node_modules/9router-pro/cli/cli.js`
+// path — e.g. `python3 tui_driver.py ... lib/node_modules/9router-ultimate/cli/cli.js`
 // ("node" matches inside "node_modules") — matched, so the CLI SIGKILLed
 // its own launcher at startup. The same would kill a shell whose command
 // line contains the path. The fix requires the *executable* to actually
