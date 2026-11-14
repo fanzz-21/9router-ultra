@@ -32,6 +32,7 @@ const navItems = [
 ];
 
 const debugItems = [
+  { href: "/dashboard/experiments", label: "Experiments", icon: "science", color: "#F59E0B" },
   { href: "/dashboard/console-log", label: "Console Log", icon: "monitor", color: "#FB923C" },
   { href: "/dashboard/translator", label: "Translator (debug)", icon: "translate", color: "#818CF8" },
 ];
