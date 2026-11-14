@@ -19,7 +19,7 @@ import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
 import { getTransform as getPxpipeTransform } from "@/lib/pxpipe/loader.js";
 import { appendPxpipeEvent } from "@/lib/pxpipe/events.js";
-import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
+import { errorResponse, unavailableResponse, maskHiddenError } from "open-sse/utils/error.js";
 import { upstreamResponseHeaders } from "open-sse/utils/upstreamHeaders.js";
 import { handleComboChat, detectRequiredCapabilities } from "open-sse/services/combo.js";
 import { augmentModelsWithCapacityAdapter, withCapacityAdapterStripping, getActiveAdapterStrategy } from "open-sse/services/capacityAdapter.js";
@@ -44,7 +44,26 @@ export async function handleChat(request, clientRawRequest = null) {
   // client on every response — success, error, or stream — via header.
   const requestId = requestIdFromRequest(request);
   const response = await withKeyAdmission(request, () => handleChatImpl(request, clientRawRequest, requestId), recheckKeyQuotaAfterCompletion);
-  return attachRequestId(response, requestId);
+  // Hide Raw Errors (experimental, Experiments page): when enabled, mask every
+  // error body (status >= 400) at this one boundary so no upstream provider
+  // message or stack reaches the API client, whichever branch produced it.
+  // Diagnostics stay server-side (logs, webhooks, request-detail records) — only
+  // the outgoing text is swapped. Success/stream (200) responses pass through.
+  const masked = await maskErrorIfHidden(response);
+  return attachRequestId(masked, requestId);
+}
+
+// Read the Hide Raw Errors toggle once and apply the masking boundary. The
+// settings read is cached (3s TTL) and failures fail open (unmasked) so the
+// toggle can never take down the error path.
+async function maskErrorIfHidden(response) {
+  if (!response || response.status < 400) return response;
+  try {
+    const settings = await getSettings();
+    return await maskHiddenError(response, Boolean(settings?.hideError));
+  } catch {
+    return response;
+  }
 }
 
 // Per-combo member pins live in comboDispatch.js (memberPinFor) so the

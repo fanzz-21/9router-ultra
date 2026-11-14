@@ -1,6 +1,12 @@
 import { ERROR_TYPES, DEFAULT_ERROR_MESSAGES } from "../config/errorConfig.js";
 import { emitErrorWebhook } from "@/lib/webhookEvents.js";
 
+// What the client is allowed to read when Hide Raw Errors is on: the status
+// code, the error type and the fact that something failed - never the upstream
+// message or stack. Diagnostics (logs, webhooks, request-detail records) are
+// untouched; only the text returned to the external API client is replaced.
+export const HIDDEN_ERROR_MESSAGE = "There is an error but this error is hidden, try checking your error log.";
+
 /**
  * Build OpenAI-compatible error response body
  * @param {number} statusCode - HTTP status code
@@ -20,6 +26,68 @@ export function buildErrorBody(statusCode, message) {
       code: errorInfo.code
     }
   };
+}
+
+/**
+ * Mask a client-facing error body when Hide Raw Errors is on.
+ *
+ * Masking at the handler boundary (rather than threading a flag into every
+ * error call site) makes the guarantee unconditional: no upstream error detail
+ * leaves the server, whichever branch produced the response. The HTTP status,
+ * error type and code stay intact, so a caller can still tell a 401 from a 503;
+ * only the human-readable message is replaced with HIDDEN_ERROR_MESSAGE.
+ *
+ * Successful responses - including 200 SSE streams - pass through untouched.
+ * Server-side diagnostics (logs, webhooks, request-detail records) are written
+ * before this runs and are not affected.
+ *
+ * @param {Response} response - the outgoing client response
+ * @param {boolean} hideError - whether Hide Raw Errors is enabled
+ * @returns {Promise<Response>} the (possibly masked) response
+ */
+export async function maskHiddenError(response, hideError) {
+  if (!hideError || !response || response.status < 400) return response;
+  const contentType = response.headers.get("content-type") || "";
+
+  const rebuild = (payload) => {
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    headers.set("content-type", "application/json");
+    return new Response(JSON.stringify(payload), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
+
+  let body = null;
+  if (contentType.includes("application/json")) {
+    try {
+      body = await response.clone().json();
+    } catch {
+      body = null;
+    }
+  }
+
+  if (body && typeof body === "object") {
+    // Nothing named `error` to mask - leave the payload alone.
+    if (!body.error) return response;
+    const error = typeof body.error === "object"
+      ? { ...body.error, message: HIDDEN_ERROR_MESSAGE }
+      : HIDDEN_ERROR_MESSAGE;
+    return rebuild({ ...body, error });
+  }
+
+  // Not JSON, or not parseable: an upstream HTML/text error page would leak the
+  // provider's wording verbatim, so rebuild it as a masked JSON error instead.
+  let text = "";
+  try {
+    text = (await response.clone().text()).trim();
+  } catch {
+    text = "";
+  }
+  if (!text) return response;
+  return rebuild(buildErrorBody(response.status, HIDDEN_ERROR_MESSAGE));
 }
 
 /**
