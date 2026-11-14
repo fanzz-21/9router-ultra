@@ -39,7 +39,9 @@ export default function DashboardLayout({ children }) {
 
   // Full-height routes get a chat-style flush layout instead of the padded,
   // max-width content wrapper.
-  const isFullHeight = pathname === "/dashboard/basic-chat" || pathname === "/dashboard/compare";
+  // basic-chat keeps the flush, full-height chat shell. Compare now renders a
+  // padded arena-style board, so it uses the normal content wrapper.
+  const isFullHeight = pathname === "/dashboard/basic-chat";
 
   // Preload heavy usage charts in background when browser is idle
   useEffect(() => {

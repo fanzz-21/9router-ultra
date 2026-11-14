@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Button } from "@/shared/components";
+import { Badge, Button, Card } from "@/shared/components";
 import { getModelsByProviderId, PROVIDER_ID_TO_ALIAS } from "@/shared/constants/models";
 import { FREE_PROVIDERS, isAnthropicCompatibleProvider, isOpenAICompatibleProvider } from "@/shared/constants/providers";
 import { getPricingForModel, calculateCostFromTokens, formatCost as formatCostUsd } from "open-sse/providers/pricing.js";
@@ -318,14 +318,6 @@ function buildRanking(models, columns) {
     });
 }
 
-const STATUS_META = {
-  idle: { label: "Idle", color: "text-white/40", icon: "schedule" },
-  streaming: { label: "Streaming", color: "text-blue-300", icon: "stream" },
-  done: { label: "Done", color: "text-emerald-300", icon: "check_circle" },
-  error: { label: "Error", color: "text-rose-300", icon: "error" },
-  aborted: { label: "Stopped", color: "text-amber-300", icon: "stop_circle" },
-};
-
 // Ticking lives on the card so a running timer never re-renders the whole grid.
 function Elapsed({ startedAt }) {
   const [now, setNow] = useState(() => performance.now());
@@ -335,12 +327,12 @@ function Elapsed({ startedAt }) {
   }, []);
   if (startedAt == null) return null;
   const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
-  return <span className="shrink-0 font-mono text-[11px] text-white/45 tabular-nums">{`${seconds}s so far`}</span>;
+  return <span className="shrink-0 font-mono text-[11px] text-text-muted tabular-nums">{`${seconds}s so far`}</span>;
 }
 
 function RankBadge({ icon, text, accent }) {
   return (
-    <span className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${accent ? "bg-amber-500/15 text-amber-300" : "border border-white/10 bg-white/5 text-white/55"}`}>
+    <span className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${accent ? "bg-primary/15 text-primary" : "border border-border-subtle bg-surface-2 text-text-muted"}`}>
       <span className="material-symbols-outlined text-[11px]">{icon}</span>
       {text}
     </span>
@@ -350,18 +342,18 @@ function RankBadge({ icon, text, accent }) {
 // Number plus bar. The bar makes the comparison readable; the digits stay for
 // exactness. A missing value shows a dash and no bar.
 function MetricCell({ entry, metric, format }) {
-  if (!metric) return <span className="font-mono text-white/45 tabular-nums">—</span>;
+  if (!metric) return <span className="font-mono text-text-muted tabular-nums">—</span>;
   const v = metric.def.value(entry);
-  if (v == null) return <span className="font-mono text-white/45 tabular-nums">—</span>;
+  if (v == null) return <span className="font-mono text-text-muted tabular-nums">—</span>;
   const isWinner = metric.winner?.modelId === entry.modelId;
   const pct = barPct(v, metric.best, metric.worst);
   return (
     <span className="flex flex-col items-end gap-1">
-      <span className={`font-mono tabular-nums ${isWinner ? "font-semibold" : "text-white/70"}`} style={isWinner ? { color: metric.def.color } : undefined}>
+      <span className={`font-mono tabular-nums ${isWinner ? "font-semibold" : "text-text-main"}`} style={isWinner ? { color: metric.def.color } : undefined}>
         {format(v)}
         {isWinner ? <span className="material-symbols-outlined ml-0.5 align-middle text-[11px] leading-none">star</span> : null}
       </span>
-      <span className="block h-1 w-full min-w-[42px] max-w-[90px] overflow-hidden rounded-full bg-white/10">
+      <span className="block h-1 w-full min-w-[42px] max-w-[90px] overflow-hidden rounded-full bg-surface-2">
         <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: metric.def.color, opacity: isWinner ? 1 : 0.45 }} />
       </span>
     </span>
@@ -386,13 +378,13 @@ function FinalResult({ ranked, pick, setPick, runId }) {
   const manual = pick != null ? ranked.find((r) => r.modelId === pick) : null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-[20px] border border-white/10 bg-[#2f2f2f] p-4">
+    <Card padding="md" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="material-symbols-outlined text-[20px] text-amber-300">trophy</span>
+          <span className="material-symbols-outlined text-[20px] text-amber-500">trophy</span>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-white">Final Result</h3>
-            <p className="text-[11px] text-white/55">
+            <h3 className="text-sm font-semibold text-text-main">Final Result</h3>
+            <p className="text-[11px] text-text-muted">
               {manual ? (
                 <>Your pick: <code className="font-mono">{manual.model.name}</code></>
               ) : leader?.stopped ? (
@@ -405,7 +397,7 @@ function FinalResult({ ranked, pick, setPick, runId }) {
             </p>
           </div>
         </div>
-        <span className="text-[10px] text-white/40">run #{runId}</span>
+        <span className="text-[10px] text-text-muted">run #{runId}</span>
       </div>
 
       {answered.length > 1 ? (
@@ -416,20 +408,20 @@ function FinalResult({ ranked, pick, setPick, runId }) {
               type="button"
               onClick={() => setPick(winner.modelId)}
               title={`${def.hint} — tap to make it your pick`}
-              className={`flex flex-col gap-1.5 rounded-xl border p-3 text-left transition ${pick === winner.modelId ? "border-amber-400/50 bg-amber-500/10" : "border-white/10 hover:border-white/25 hover:bg-white/5"}`}
+              className={`flex flex-col gap-1.5 rounded-xl border p-3 text-left transition-colors ${pick === winner.modelId ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30 hover:bg-surface-2"}`}
             >
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/55">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
                 <span className="material-symbols-outlined text-[13px] leading-none" style={{ color: def.color }}>{def.icon}</span>
                 {def.label}
               </span>
               <span className="font-mono text-lg font-bold leading-none tabular-nums" style={{ color: def.color }}>{def.format(best)}</span>
-              <span className="truncate font-mono text-[11px] text-white">{winner.model.name}</span>
+              <span className="truncate font-mono text-[11px] text-text-main">{winner.model.name}</span>
             </button>
           ))}
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/45">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted">
         <span className="material-symbols-outlined text-[12px] leading-none">info</span>
         <span>Ranked automatically on speed and spend only — bars compare the same metric across contenders. Answer quality is yours to judge, so use “My pick”.</span>
       </div>
@@ -437,7 +429,7 @@ function FinalResult({ ranked, pick, setPick, runId }) {
       <div className="min-w-0 overflow-x-auto">
         <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="border-b border-white/10 text-white/50">
+            <tr className="border-b border-border text-text-muted">
               <th className="py-2 pr-3 text-left font-medium">Model</th>
               <th className="px-3 py-2 text-right font-medium">Time</th>
               <th className="px-3 py-2 text-right font-medium">First token</th>
@@ -451,11 +443,11 @@ function FinalResult({ ranked, pick, setPick, runId }) {
               const isWinner = position === 0 && entry.answered && !entry.stopped && pick == null;
               const isPicked = pick === entry.modelId;
               return (
-                <tr key={entry.modelId} className={`border-b border-white/5 last:border-0 ${isPicked ? "bg-amber-500/5" : ""}`}>
+                <tr key={entry.modelId} className={`border-b border-border/50 last:border-0 ${isPicked ? "bg-primary/5" : ""}`}>
                   <td className="py-2 pr-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="w-4 shrink-0 text-white/45 tabular-nums">{position + 1}</span>
-                      <code className="max-w-[220px] truncate font-mono text-white">{entry.model.name}</code>
+                      <span className="w-4 shrink-0 text-text-muted tabular-nums">{position + 1}</span>
+                      <code className="max-w-[220px] truncate font-mono text-text-main">{entry.model.name}</code>
                       {isWinner ? <RankBadge icon="trophy" text="fastest" /> : null}
                       {winners.firstToken?.modelId === entry.modelId ? <RankBadge icon="bolt" text="first token" /> : null}
                       {winners.cheapest?.modelId === entry.modelId ? <RankBadge icon="payments" text="cheapest" /> : null}
@@ -464,7 +456,7 @@ function FinalResult({ ranked, pick, setPick, runId }) {
                       {isPicked ? <RankBadge icon="check" text="your pick" accent /> : null}
                     </div>
                     {!entry.answered && !entry.stopped ? (
-                      <span className={`text-[11px] ${entry.ok ? "text-amber-300" : "text-rose-300"}`}>{entry.ok ? "empty answer" : "failed"}</span>
+                      <span className={`text-[11px] ${entry.ok ? "text-amber-500" : "text-red-500"}`}>{entry.ok ? "empty answer" : "failed"}</span>
                     ) : null}
                   </td>
                   <td className="px-3 py-2 text-right"><MetricCell entry={entry} metric={byKey.ms} format={(v) => formatMs(v)} /></td>
@@ -474,7 +466,7 @@ function FinalResult({ ranked, pick, setPick, runId }) {
                   <td className="py-2 pl-3 text-right">
                     <button
                       onClick={() => setPick(isPicked ? null : entry.modelId)}
-                      className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition ${isPicked ? "border-amber-400 bg-amber-400 text-black" : "border-white/15 text-white/55 hover:border-amber-400/50 hover:text-amber-300"}`}
+                      className={`rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors ${isPicked ? "border-primary bg-primary text-white" : "border-border text-text-muted hover:border-primary/50 hover:text-primary"}`}
                     >
                       {isPicked ? "picked" : "pick"}
                     </button>
@@ -485,7 +477,7 @@ function FinalResult({ ranked, pick, setPick, runId }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -509,8 +501,6 @@ export default function CompareModelsPageClient() {
   });
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  // Shared conversation sent to every selected model on each turn.
-  const [sharedConversation, setSharedConversation] = useState([]);
   // Per-model column state keyed by model.id.
   const [columns, setColumns] = useState({});
   const [runId, setRunId] = useState(0);
@@ -733,7 +723,6 @@ export default function CompareModelsPageClient() {
 
   const handleClear = () => {
     handleStop();
-    setSharedConversation([]);
     setColumns({});
     setLoadError("");
     setPick(null);
@@ -909,7 +898,9 @@ export default function CompareModelsPageClient() {
     }
   };
 
-  const sendPrompt = async () => {
+  // Arena is single-shot: one prompt fans out to every contender and the
+  // results replace the previous board rather than appending a chat turn.
+  const runBattle = async () => {
     if (selectedModels.length === 0) return;
 
     // The LLM pipeline authenticates by API key. With keys available but none
@@ -923,10 +914,8 @@ export default function CompareModelsPageClient() {
     const userText = draft.trim();
     if (!userText) return;
 
-    const requestMessages = [...sharedConversation, { role: "user", content: userText }];
+    const requestMessages = [{ role: "user", content: userText }];
 
-    setSharedConversation((prev) => [...prev, { role: "user", content: userText }]);
-    setDraft("");
     setIsSending(true);
     setLoadError("");
     setPick(null);
@@ -935,65 +924,62 @@ export default function CompareModelsPageClient() {
 
     // Fan out one request per selected model in parallel; each streams into its
     // own column independently.
-    const results = await Promise.all(
+    await Promise.all(
       selectedModels.map((model) => streamModel(model, requestMessages, apiKey))
     );
-
-    // Record the first non-empty response as the shared assistant turn so
-    // follow-ups carry context for every model.
-    const firstAnswer = results.find((result) => result && result.text)?.text || "";
-    if (firstAnswer) {
-      setSharedConversation((prev) => [...prev, { role: "assistant", content: firstAnswer }]);
-    }
 
     setIsSending(false);
     abortControllersRef.current = [];
   };
 
-  const handleKeyDown = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      if (canSend) sendPrompt();
-    }
-  };
-
-  const gridColsClass = selectedModels.length <= 1
-    ? "lg:grid-cols-1"
-    : "lg:grid-cols-2";
+  const hasBoard = selectedModels.length > 0 && (ranked.length > 0 || isSending);
 
   return (
-    <div className="relative flex-1 flex flex-col h-full min-h-0 min-w-0 bg-[#212121] text-white overflow-hidden">
-      <div className="relative mx-auto flex flex-1 h-full min-h-0 w-full max-w-7xl flex-col">
-        {/* Toolbar: model picker + api key + clear */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
+    <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
+      <div className="flex flex-col gap-2">
+        <h1 className="flex items-center gap-2 text-xl font-bold leading-none text-text-main">
+          <span className="material-symbols-outlined size-[22px] shrink-0 text-[22px] leading-none text-primary">swords</span>
+          Compare Models
+        </h1>
+        <p className="text-sm text-text-muted">
+          Send the same prompt to up to {MAX_MODELS} models and compare speed, cost and output.
+        </p>
+        <p className="text-[11px] text-text-muted">
+          Each answer streams live, so the time to first token shows a slow model still working.
+        </p>
+      </div>
+
+      {/* Prompt panel: contender picker + prompt + run/stop */}
+      <Card padding="md" className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <div ref={modelMenuRef} className="relative">
               <button
                 type="button"
                 onClick={() => setModelMenuOpen((value) => !value)}
-                className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:bg-white/8"
+                className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-left transition-colors hover:border-primary/40"
               >
-                <span className="material-symbols-outlined text-[18px] text-amber-300">swords</span>
-                <span className="text-sm font-semibold text-white">Add contenders</span>
+                <span className="material-symbols-outlined text-[18px] text-primary">swords</span>
+                <span className="text-sm font-semibold text-text-main">Add contenders</span>
                 <Badge size="sm" variant="default">{selectedModels.length}/{MAX_MODELS}</Badge>
-                <span className="material-symbols-outlined text-[18px] text-white/70">expand_more</span>
+                <span className="material-symbols-outlined text-[18px] text-text-muted">expand_more</span>
               </button>
 
               {modelMenuOpen ? (
-                <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-[min(560px,calc(100vw-2rem))] overflow-hidden rounded-[20px] border border-white/10 bg-[#262626] shadow-2xl shadow-black/50">
-                  <div className="border-b border-white/10 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">Models</p>
-                    <p className="text-sm text-white/75">Select up to {MAX_MODELS} to compare side-by-side</p>
+                <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-[min(560px,calc(100vw-2rem))] overflow-hidden rounded-[16px] border border-border bg-surface shadow-[var(--shadow-elev)]">
+                  <div className="border-b border-border px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.22em] text-text-muted">Models</p>
+                    <p className="text-sm text-text-main">Select up to {MAX_MODELS} to compare side-by-side</p>
                   </div>
-                  <div className="max-h-[60vh] overflow-y-auto p-2 custom-scrollbar">
+                  <div className="custom-scrollbar max-h-[60vh] overflow-y-auto p-2">
                     {providerGroups.length === 0 ? (
-                      <div className="rounded-[16px] border border-dashed border-white/10 bg-white/5 p-4 text-sm text-white/55">
+                      <div className="rounded-[12px] border border-dashed border-border bg-surface-2 p-4 text-sm text-text-muted">
                         {loadingData ? "Loading models…" : "No models available."}
                       </div>
                     ) : providerGroups.map((group) => (
-                      <div key={group.providerId} className="mb-2 rounded-[16px] border border-white/10 bg-black/20 p-2">
+                      <div key={group.providerId} className="mb-2 rounded-[12px] border border-border-subtle bg-surface-2/60 p-2">
                         <div className="flex items-center justify-between px-2 py-2">
-                          <p className="text-sm font-semibold text-white">{group.providerName}</p>
+                          <p className="text-sm font-semibold text-text-main">{group.providerName}</p>
                           <Badge size="sm" variant="default">{group.models.length}</Badge>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
@@ -1006,14 +992,14 @@ export default function CompareModelsPageClient() {
                                 type="button"
                                 disabled={atCap}
                                 onClick={() => toggleModel(model.id)}
-                                className={`rounded-[14px] border px-3 py-3 text-left transition ${isSelected ? "border-amber-400/40 bg-amber-500/15" : atCap ? "border-white/10 bg-white/5 opacity-40 cursor-not-allowed" : "border-white/10 bg-white/5 hover:bg-white/8"}`}
+                                className={`rounded-[12px] border px-3 py-3 text-left transition-colors ${isSelected ? "border-primary/40 bg-primary/10" : atCap ? "cursor-not-allowed border-border-subtle bg-surface-2 opacity-40" : "border-border-subtle bg-surface-2 hover:border-primary/30"}`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-white">{model.name}</p>
-                                    <p className="truncate text-[11px] text-white/45">{model.requestModel}</p>
+                                    <p className="truncate text-sm font-medium text-text-main">{model.name}</p>
+                                    <p className="truncate font-mono text-[11px] text-text-muted">{model.requestModel}</p>
                                   </div>
-                                  {isSelected ? <span className="material-symbols-outlined text-[18px] text-amber-300">check_circle</span> : null}
+                                  {isSelected ? <span className="material-symbols-outlined text-[18px] text-primary">check_circle</span> : null}
                                 </div>
                               </button>
                             );
@@ -1028,10 +1014,10 @@ export default function CompareModelsPageClient() {
 
             {/* Selected models as removable chips */}
             {selectedModels.map((model, index) => (
-              <span key={model.id} className="flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs text-white">
-                <span className="text-white/45">Contender {index + 1}</span>
+              <span key={model.id} className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs text-text-main">
+                <span className="text-text-muted">Contender {index + 1}</span>
                 <span className="max-w-[12rem] truncate">{model.name}</span>
-                <button type="button" onClick={() => removeModel(model.id)} className="text-white/55 hover:text-white" aria-label={`Remove ${model.name}`}>
+                <button type="button" onClick={() => removeModel(model.id)} className="text-text-muted hover:text-text-main" aria-label={`Remove ${model.name}`}>
                   <span className="material-symbols-outlined text-[16px]">close</span>
                 </button>
               </span>
@@ -1043,7 +1029,7 @@ export default function CompareModelsPageClient() {
               value={activeApiKeyId}
               onChange={(event) => setActiveApiKeyId(event.target.value)}
               aria-label="API key"
-              className="max-w-[180px] truncate rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white/80 transition hover:bg-white/8"
+              className="max-w-[180px] truncate rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-text-main transition-colors hover:border-primary/40 focus:border-primary/50 focus:outline-none"
             >
               {apiKeys.length === 0 ? (
                 <option value="">Buat API key dulu di Endpoint &amp; Key</option>
@@ -1055,184 +1041,163 @@ export default function CompareModelsPageClient() {
                 ))
               )}
             </select>
-            <Button variant="ghost" size="sm" icon="delete" onClick={handleClear} disabled={sharedConversation.length === 0 && Object.keys(columns).length === 0}>
+            <Button variant="ghost" size="sm" icon="delete" onClick={handleClear} disabled={Object.keys(columns).length === 0}>
               Clear
             </Button>
           </div>
         </div>
 
-        {loadError ? (
-          <div className="mx-4 mt-2 rounded-[18px] border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-rose-100 lg:mx-6">
-            <div className="flex items-start gap-3">
-              <span className="material-symbols-outlined text-[20px]">error</span>
-              <p className="text-sm leading-6">{loadError}</p>
-            </div>
-          </div>
+        {selectedModels.length === 0 ? (
+          <p className="text-[11px] text-text-muted">
+            Add at least one contender, then write a prompt below. Free models are available without a provider.
+            {apiKeys.length === 0 ? (
+              <>
+                {" "}Belum ada API key —{" "}
+                <a href="/dashboard/endpoint" className="font-semibold text-primary underline">buat dulu di Endpoint &amp; Key</a>.
+              </>
+            ) : null}
+          </p>
         ) : null}
 
-        {/* Comparison columns */}
-        <div className="flex flex-1 flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar lg:px-6">
-            {selectedModels.length === 0 ? (
-              <div className="flex min-h-[50vh] items-center justify-center px-4 text-center">
-                <div className="max-w-xl space-y-4">
-                  <div className="mx-auto flex size-16 items-center justify-center rounded-[20px] border border-white/10 bg-white/5 text-white/80">
-                    <span className="material-symbols-outlined text-[30px]">swords</span>
-                  </div>
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-semibold text-white">Compare models side-by-side</h2>
-                    <p className="text-sm leading-6 text-white/60">
-                      Add up to {MAX_MODELS} contenders, type one prompt, and send it to all of them at once. Each answer streams live with its time to first token, total latency, token usage and cost, then a Final Result card ranks them on speed and spend.
-                    </p>
-                    {apiKeys.length === 0 ? (
-                      <p className="text-sm leading-6 text-white/60">
-                        Belum ada API key —{" "}
-                        <a href="/dashboard/endpoint" className="font-semibold text-violet-300 underline">
-                          buat dulu di Endpoint &amp; Key
-                        </a>
-                        , lalu kirim prompt pertama kamu (model gratis sudah tersedia, tanpa provider).
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {ranked.length > 1 ? (
-                  <FinalResult ranked={ranked} pick={pick} setPick={setPick} runId={runId} />
-                ) : null}
-
-                <div className={`grid grid-cols-1 gap-4 ${gridColsClass}`}>
-                  {selectedModels.map((model, index) => {
-                    const column = columns[model.id] || {};
-                    const status = column.status || "idle";
-                    const meta = STATUS_META[status] || STATUS_META.idle;
-                    const metrics = column.metrics || {};
-                    const usage = metrics.usage;
-                    const costLabel = metrics.cost != null ? showCost(metrics.cost) : null;
-                    const streaming = status === "streaming";
-                    return (
-                      <div key={model.id} className="flex min-h-[40vh] flex-col overflow-hidden rounded-[20px] border border-white/10 bg-[#2f2f2f]">
-                        <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-[11px] text-white/45">Contender {index + 1} · {model.providerName}</p>
-                            <p className="truncate text-sm font-semibold text-white">{model.name}</p>
-                          </div>
-                          {streaming ? (
-                            <Elapsed startedAt={column.startedAt} />
-                          ) : (
-                            <span className={`flex items-center gap-1 text-[11px] font-medium ${meta.color}`}>
-                              <span className="material-symbols-outlined text-[14px]">{meta.icon}</span>
-                              {status === "done" && metrics.totalMs != null ? formatMs(metrics.totalMs) : meta.label}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
-                          {status === "error" ? (
-                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-rose-200">{column.error || "Request failed."}</p>
-                          ) : streaming && !column.text && !column.thinking ? (
-                            <div className="flex h-40 flex-col items-center justify-center gap-3 text-white/55">
-                              <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
-                              <span className="text-sm">Waiting for the first token…</span>
-                            </div>
-                          ) : column.text || column.thinking ? (
-                            <div className="flex flex-col gap-2">
-                              {column.text ? (
-                                <p className="whitespace-pre-wrap break-words text-[14px] leading-7 text-white/90">
-                                  {column.text}
-                                  {streaming ? <span className="inline-block animate-pulse">▋</span> : null}
-                                </p>
-                              ) : column.thinking && (streaming || column.kind === "thinking") ? (
-                                <div className="flex flex-col gap-1.5">
-                                  {!streaming ? <p className="text-[11px] text-white/45">Only reasoning came back, with no final answer.</p> : null}
-                                  <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-6 text-white/75">
-                                    {column.thinking}
-                                    {streaming ? <span className="inline-block animate-pulse">▋</span> : null}
-                                  </pre>
-                                </div>
-                              ) : null}
-                              {column.text && column.thinking ? (
-                                <details className="min-w-0">
-                                  <summary className="cursor-pointer text-[11px] text-white/45 hover:text-amber-300">Show the reasoning behind this answer</summary>
-                                  <pre className="mt-1 max-h-40 overflow-auto custom-scrollbar whitespace-pre-wrap break-words rounded-[12px] border border-white/10 bg-black/20 p-2 text-[11px] text-white/60">
-                                    {column.thinking}
-                                  </pre>
-                                </details>
-                              ) : null}
-                            </div>
-                          ) : column.kind === "empty" ? (
-                            <div className="flex flex-col gap-1.5">
-                              <p className="break-words text-sm text-amber-300">{column.hint || describeEmptyResponse({})}</p>
-                              {status !== "aborted" ? <p className="text-[11px] text-white/45">The provider answered with HTTP 200 and nothing inside.</p> : null}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-white/35">No response yet.</p>
-                          )}
-
-                          {status === "aborted" && column.kind !== "empty" && column.hint ? (
-                            <p className="mt-2 break-words text-[11px] text-amber-300">{column.hint}</p>
-                          ) : null}
-                        </div>
-
-                        {/* Per-column metrics */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-4 py-2 text-[11px] text-white/55">
-                          <span title="Time to first token">first token {formatMs(metrics.ttftMs)}</span>
-                          <span title="Total time">total {formatMs(metrics.totalMs)}</span>
-                          {usage ? (
-                            <span title="Token usage">
-                              {usage.total != null ? `${usage.total} tok` : null}
-                              {usage.prompt != null && usage.completion != null ? ` (${usage.prompt}+${usage.completion})` : null}
-                            </span>
-                          ) : null}
-                          {costLabel ? <span title="Estimated cost">~{costLabel}</span> : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Shared prompt input */}
-          <div className="shrink-0 pt-2">
-            <div className="mx-auto w-full max-w-3xl px-4 pb-2">
-              <div className="rounded-[26px] bg-[#2f2f2f] px-3 pt-3 pb-2 shadow-[0_0_15px_rgba(0,0,0,0.10)] ring-1 ring-white/5">
-                <textarea
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={selectedModels.length === 0 ? "Add at least one contender to compare" : "Message all selected models"}
-                  rows={1}
-                  className="w-full resize-none bg-transparent px-2 text-[15px] leading-6 text-white outline-none placeholder:text-white/40 custom-scrollbar max-h-[25vh] overflow-y-auto"
-                />
-
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-xs font-medium text-white/30 truncate max-w-[220px]">
-                    {selectedModels.length > 0 ? `${selectedModels.length} contender${selectedModels.length > 1 ? "s" : ""}` : "No contenders"}
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    {isSending ? (
-                      <button type="button" onClick={handleStop} className="p-2 text-white bg-white/10 hover:bg-white/20 transition rounded-full h-8 w-8 flex items-center justify-center" aria-label="Stop all">
-                        <span className="material-symbols-outlined text-[16px]">stop</span>
-                      </button>
-                    ) : null}
-                    <button onClick={sendPrompt} disabled={!canSend} className={`h-8 w-8 rounded-full flex items-center justify-center transition ${canSend ? "bg-white text-black hover:opacity-90" : "bg-white/10 text-white/30 cursor-not-allowed"}`} aria-label="Send to all">
-                      <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p className="mx-auto mt-2 max-w-3xl px-4 pb-4 text-center text-[11px] text-white/30">
-              One prompt fans out to every selected model in parallel. Stop cancels all in-flight requests and keeps whatever already streamed.
-            </p>
-          </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-text-main">Prompt</label>
+          <textarea
+            className="min-h-[120px] w-full rounded-lg border border-border bg-surface-2 p-3 text-sm text-text-main transition-colors focus:border-primary/50 focus:outline-none"
+            placeholder="Write a python script to parse CSV…"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
         </div>
-      </div>
+
+        <div className="flex justify-end">
+          <Button
+            icon={isSending ? "stop_circle" : "play_arrow"}
+            onClick={isSending ? handleStop : runBattle}
+            disabled={isSending ? false : !canSend}
+            variant={isSending ? "secondary" : "primary"}
+          >
+            {isSending ? "Stop" : "Run Battle"}
+          </Button>
+        </div>
+      </Card>
+
+      {loadError ? (
+        <div className="flex items-start gap-3 rounded-[16px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-500">
+          <span className="material-symbols-outlined text-[20px]">error</span>
+          <p className="text-sm leading-6">{loadError}</p>
+        </div>
+      ) : null}
+
+      {ranked.length > 1 ? (
+        <FinalResult ranked={ranked} pick={pick} setPick={setPick} runId={runId} />
+      ) : null}
+
+      {hasBoard ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {selectedModels.map((model, index) => {
+            const column = columns[model.id] || {};
+            const status = column.status || "idle";
+            const metrics = column.metrics || {};
+            const usage = metrics.usage;
+            const costLabel = metrics.cost != null ? showCost(metrics.cost) : null;
+            const streaming = status === "streaming";
+            const hasResult = status !== "idle" && status !== "streaming";
+            return (
+              <Card key={model.id} padding="sm" className="flex h-full min-w-0 flex-col">
+                <div className="mb-3 flex items-center justify-between gap-2 border-b border-border pb-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] text-text-muted">Contender {index + 1} · {model.providerName}</p>
+                    <p className="truncate font-mono text-sm font-semibold text-text-main">{model.name}</p>
+                  </div>
+                  {streaming ? (
+                    <Elapsed startedAt={column.startedAt} />
+                  ) : hasResult ? (
+                    <span
+                      className={`shrink-0 rounded px-2 py-1 font-mono text-xs ${
+                        status === "error"
+                          ? "bg-red-500/10 text-red-500"
+                          : column.kind === "empty" || status === "aborted"
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "bg-green-500/10 text-green-500"
+                      }`}
+                    >
+                      {status === "error"
+                        ? "failed"
+                        : status === "aborted"
+                          ? "stopped"
+                          : column.kind === "empty"
+                            ? "empty"
+                            : formatMs(metrics.totalMs)}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="min-w-0 flex-1 overflow-auto rounded-lg border border-border-subtle bg-surface-2/60 p-3">
+                  {status === "error" ? (
+                    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-red-500">{column.error || "Request failed."}</p>
+                  ) : streaming && !column.text && !column.thinking ? (
+                    <div className="flex h-40 flex-col items-center justify-center gap-3 text-text-muted">
+                      <span className="material-symbols-outlined animate-spin text-3xl">progress_activity</span>
+                      <span className="text-sm">Waiting for the first token…</span>
+                    </div>
+                  ) : column.text || column.thinking ? (
+                    <div className="flex min-w-0 flex-col gap-2">
+                      {column.text ? (
+                        <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-sm text-text-main">
+                          {column.text}
+                          {streaming ? <span className="animate-pulse">▍</span> : null}
+                        </pre>
+                      ) : column.thinking && (streaming || column.kind === "thinking") ? (
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          {!streaming ? <p className="text-[11px] text-text-muted">Only reasoning came back, with no final answer.</p> : null}
+                          <pre className="min-w-0 whitespace-pre-wrap break-words font-mono text-sm text-text-muted">
+                            {column.thinking}
+                            {streaming ? <span className="animate-pulse">▍</span> : null}
+                          </pre>
+                        </div>
+                      ) : null}
+                      {column.text && column.thinking ? (
+                        <details className="min-w-0">
+                          <summary className="cursor-pointer text-[11px] text-text-muted hover:text-primary">Show the reasoning behind this answer</summary>
+                          <pre className="custom-scrollbar mt-1 max-h-40 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border-subtle bg-surface-2 p-2 text-[11px] text-text-muted">
+                            {column.thinking}
+                          </pre>
+                        </details>
+                      ) : null}
+                    </div>
+                  ) : column.kind === "empty" ? (
+                    <div className="flex min-w-0 flex-col gap-1.5">
+                      <p className="break-words text-sm text-amber-500">{column.hint || describeEmptyResponse({})}</p>
+                      {status !== "aborted" ? <p className="text-[11px] text-text-muted">The provider answered with HTTP 200 and nothing inside.</p> : null}
+                    </div>
+                  ) : (
+                    <div className="flex h-40 items-center justify-center text-sm text-text-muted">No result</div>
+                  )}
+
+                  {status === "aborted" && column.kind !== "empty" && column.hint ? (
+                    <p className="mt-2 break-words text-[11px] text-amber-500">{column.hint}</p>
+                  ) : null}
+                </div>
+
+                {hasResult && status !== "error" ? (
+                  <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-border/50 pt-3 text-xs text-text-muted">
+                    {metrics.ttftMs != null ? <span>first token in {formatMs(metrics.ttftMs)}</span> : null}
+                    {metrics.totalMs != null ? <span>total {formatMs(metrics.totalMs)}</span> : null}
+                    {usage ? (
+                      <>
+                        <span>in {usage.prompt ?? 0}</span>
+                        <span>out {usage.completion ?? 0}</span>
+                        <span>total {usage.total ?? 0}</span>
+                      </>
+                    ) : null}
+                    {costLabel ? <span>~{costLabel}</span> : null}
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
