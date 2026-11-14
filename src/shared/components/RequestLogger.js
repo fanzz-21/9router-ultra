@@ -1,0 +1,207 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Card from "./Card";
+import Button from "./Button";
+
+export default function RequestLogger() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [nodeMap, setNodeMap] = useState({});
+  const [logsError, setLogsError] = useState(false);
+
+  useEffect(() => {
+    fetchLogs();
+    // Custom node id -> node name, fetched once (same pattern as the
+    // ProviderLimits nodeMap). Used for display names only, never icons.
+    fetch("/api/provider-nodes")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const map = {};
+        for (const n of d?.nodes || []) if (n.id && n.name) map[n.id] = n.name;
+        setNodeMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Display name for a provider token: custom node id -> node name,
+  // anything else (built-ins like dahl) passes through unchanged.
+  // Lookup is case-insensitive: the log line may carry the token uppercased.
+  // Fallback is the raw id itself — never a type label.
+  const displayProvider = (raw) => nodeMap[raw?.toLowerCase()] || raw;
+
+  useEffect(() => {
+    let interval;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        fetchLogs(false);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  // Client-side CSV export (G22) from the already-fetched log lines —
+  // no new API route. Same parse as the table below.
+  const downloadCsv = () => {
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [["datetime", "model", "provider", "account", "tokens_in", "tokens_out", "status"]];
+    for (const log of logs) {
+      const parts = log.split(" | ");
+      if (parts.length < 7) continue;
+      rows.push([
+        parts[0],
+        parts.slice(1, parts.length - 5).join(" | "),
+        displayProvider(parts[parts.length - 5]),
+        parts[parts.length - 4],
+        parts[parts.length - 3],
+        parts[parts.length - 2],
+        parts[parts.length - 1],
+      ]);
+    }
+    const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "9router-request-logs.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+
+  const fetchLogs = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    try {
+      const res = await fetch("/api/usage/logs");
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data);
+        setLogsError(false);
+      } else {
+        setLogsError(true);
+      }
+    } catch (error) {
+      console.error("Failed to fetch logs:", error);
+      setLogsError(true);
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">Request Logs</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={downloadCsv} disabled={logs.length === 0} className="whitespace-nowrap">
+            Download CSV
+          </Button>
+          <label className="text-sm font-medium text-text-muted flex items-center gap-2 cursor-pointer whitespace-nowrap">
+            <span>Auto Refresh (3s)</span>
+            <div
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${autoRefresh ? "bg-primary" : "bg-bg-subtle border border-border"
+                }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${autoRefresh ? "translate-x-5" : "translate-x-1"
+                  }`}
+              />
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <p className="text-xs text-text-muted">
+        One line per API request served by this router. For a per-request breakdown (tokens, timing),
+        see <a href="/dashboard/usage?tab=details" className="font-medium text-primary hover:underline">Usage → Details</a>;
+        for live server console output, see <a href="/dashboard/console-log" className="font-medium text-primary hover:underline">Console Log</a>.
+      </p>
+
+      {logsError && logs.length > 0 && (
+        <p className="text-xs text-red-500">Failed to refresh logs — showing last loaded data.</p>
+      )}
+
+      <Card className="overflow-hidden bg-black/5 dark:bg-black/20">
+        <div className="p-0 overflow-x-auto max-h-[600px] overflow-y-auto font-mono text-xs">
+          {loading && logs.length === 0 ? (
+            <div className="p-8 text-center text-text-muted">Loading logs...</div>
+          ) : logs.length === 0 ? (
+            logsError ? (
+              <div className="p-8 text-center text-text-muted">
+                <p>Failed to load logs — check your connection and try again.</p>
+              </div>
+            ) : (
+            <div className="p-8 text-center text-text-muted">
+              <p>No logs recorded yet.</p>
+              <a href="/dashboard/endpoint" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                Create a key and send your first request →
+              </a>
+            </div>
+            )
+          ) : (
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead className="border-b border-border">
+                <tr>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2 border-r border-border">DateTime</th>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2 border-r border-border">Model</th>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2 border-r border-border">Provider</th>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2 border-r border-border">Account</th>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2 border-r border-border">In</th>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2 border-r border-border">Out</th>
+                  <th className="sticky top-0 z-10 bg-bg-subtle px-3 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {logs.map((log, i) => {
+                  // Parse from both ends: a model name may itself contain
+                  // " | ", which used to drop or misalign the whole row.
+                  const parts = log.split(" | ");
+                  if (parts.length < 7) return null;
+
+                  const datetime = parts[0];
+                  const status = parts[parts.length - 1];
+                  const tokensOut = parts[parts.length - 2];
+                  const tokensIn = parts[parts.length - 3];
+                  const account = parts[parts.length - 4];
+                  const provider = parts[parts.length - 5];
+                  const model = parts.slice(1, parts.length - 5).join(" | ");
+                  const isPending = status.includes("PENDING");
+                  const isFailed = status.includes("FAILED");
+                  const isSuccess = status.includes("OK");
+
+                  return (
+                    <tr key={i} className={`hover:bg-primary/5 transition-colors ${isPending ? 'bg-primary/5' : ''}`}>
+                      <td className="px-3 py-1.5 border-r border-border text-text-muted">{datetime}</td>
+                      <td className="px-3 py-1.5 border-r border-border font-medium">{model}</td>
+                      <td className="px-3 py-1.5 border-r border-border">
+                        <span
+                          className="inline-block truncate max-w-[180px] align-middle px-1.5 py-0.5 rounded bg-bg-subtle border border-border text-[10px] uppercase font-bold"
+                          title={displayProvider(provider)}
+                        >
+                          {displayProvider(provider)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5 border-r border-border truncate max-w-[150px]" title={account}>{account}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-right text-primary">{tokensIn}</td>
+                      <td className="px-3 py-1.5 border-r border-border text-right text-success">{tokensOut}</td>
+                      <td className={`px-3 py-1.5 font-bold ${isSuccess ? 'text-success' :
+                          isFailed ? 'text-error' :
+                            'text-primary animate-pulse'
+                        }`}>
+                        {status}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Card>
+      <div className="text-[10px] text-text-muted italic">
+        Logs are loaded from the request history database.
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,223 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import PropTypes from "prop-types";
+import ChangelogModal from "./ChangelogModal";
+import { ConfirmModal } from "./Modal";
+import { cn } from "@/shared/utils/cn";
+import { ACCENT_STORAGE_KEY, PRO_DEFAULT_ACCENT, isValidAccent, applyCustomAccent, getStoredCustomAccent, hslToHex, hexToHue, hexToLight, CUSTOM_ACCENT_ID } from "@/shared/constants/accents";
+
+// Quick dark → light shades for the current hue (custom colors used to
+// sit at one fixed lightness, so dark and light variants were unreachable
+// from the slider — these dots multiply the choice per hue).
+const CUSTOM_SHADES = [20, 33, 46, 59, 72, 85];
+
+function MenuItem({ icon, label, onClick, trailing, danger }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors ${
+        danger
+          ? "text-red-500 hover:bg-red-500/10"
+          : "text-text-main hover:bg-black/5 dark:hover:bg-white/5"
+      }`}
+    >
+      <span className={`material-symbols-outlined text-[20px] ${danger ? "" : "text-text-muted"}`}>
+        {icon}
+      </span>
+      <span className="flex-1 text-left">{label}</span>
+      {trailing}
+    </button>
+  );
+}
+
+MenuItem.propTypes = {
+  icon: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  onClick: PropTypes.func.isRequired,
+  trailing: PropTypes.node,
+  danger: PropTypes.bool,
+};
+
+export default function HeaderMenu({ onLogout }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
+  const [shutdownOpen, setShutdownOpen] = useState(false);
+  const [isShuttingDown, setIsShuttingDown] = useState(false);
+  const menuRef = useRef(null);
+
+  // 9Router Pro: the accent picker lives in this menu now — it used to be
+  // a palette popover in the header bar. The theme itself is a single
+  // default (dark neumorphism); there is no preset or light/dark switch.
+  const [accent, setAccent] = useState(PRO_DEFAULT_ACCENT);
+  const [customHex, setCustomHex] = useState("#8B5CF6");
+  const [hue, setHue] = useState(262);
+  const [light, setLight] = useState(58);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ACCENT_STORAGE_KEY);
+      if (saved === CUSTOM_ACCENT_ID) {
+        const c = getStoredCustomAccent();
+        if (c) {
+          setAccent(CUSTOM_ACCENT_ID);
+          setCustomHex(c);
+          setHue(hexToHue(c));
+          setLight(hexToLight(c));
+        }
+      } else if (saved && isValidAccent(saved)) {
+        setAccent(saved);
+      }
+    } catch { /* private mode */ }
+  }, []);
+
+  // Free color choice: slide the hue (or tap the dot for an exact color) and
+  // the whole brand scale is derived from it live — see constants/accents.js.
+  // Lightness is preserved across hue slides, so a dark pick stays dark.
+  const applyHex = (hex) => {
+    setCustomHex(hex);
+    setAccent(CUSTOM_ACCENT_ID);
+    applyCustomAccent(hex);
+  };
+
+  const onHue = (e) => {
+    const h = Number(e.target.value);
+    setHue(h);
+    applyHex(hslToHex(h, 84, light));
+  };
+
+  const onPickColor = (e) => {
+    const hex = e.target.value;
+    setHue(hexToHue(hex));
+    setLight(hexToLight(hex));
+    applyHex(hex);
+  };
+
+  const onShade = (l) => {
+    setLight(l);
+    applyHex(hslToHex(hue, 84, l));
+  };
+
+  const handleShutdown = async () => {
+    setIsShuttingDown(true);
+    try {
+      await fetch("/api/version/shutdown", { method: "POST" });
+    } catch (e) {
+      // Expected to fail as server shuts down; ignore error
+    }
+    setIsShuttingDown(false);
+    setShutdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  const close = () => setIsOpen(false);
+
+  return (
+    <>
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setIsOpen((v) => !v)}
+          className="flex items-center justify-center p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+          title="Menu"
+        >
+          <span className="material-symbols-outlined">grid_view</span>
+        </button>
+
+        {isOpen && (
+          <div className="absolute right-0 top-full mt-2 w-64 max-h-[80vh] overflow-y-auto bg-surface border border-black/10 dark:border-white/10 rounded-xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 py-1">
+            <MenuItem
+              icon="history"
+              label="Change Log"
+              onClick={() => { close(); setChangelogOpen(true); }}
+            />
+            <div className="my-1 border-t border-black/5 dark:border-white/5" />
+            <p className="px-4 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              Custom color
+            </p>
+            <div className="flex items-center gap-2.5 px-4 pb-2">
+              <input
+                type="range"
+                min="0"
+                max="359"
+                value={hue}
+                onChange={onHue}
+                className="hue-slider min-w-0 flex-1 cursor-pointer"
+                style={{ background: "linear-gradient(90deg,#ff0000,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)" }}
+                aria-label="Custom accent color hue"
+              />
+              <label
+                className="relative size-6 shrink-0 cursor-pointer rounded-full border border-white/25"
+                style={{ backgroundColor: customHex }}
+                title="Pick an exact color"
+              >
+                <input type="color" value={customHex} onChange={onPickColor} className="absolute inset-0 cursor-pointer opacity-0" />
+              </label>
+              <span className="w-14 shrink-0 font-mono text-[11px] uppercase text-text-muted">
+                {accent === CUSTOM_ACCENT_ID ? customHex : "—"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 px-4 pb-2">
+              {CUSTOM_SHADES.map((l) => {
+                const hex = hslToHex(hue, 84, l);
+                const active = accent === CUSTOM_ACCENT_ID && light === l;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => onShade(l)}
+                    title={`Lightness ${l}%`}
+                    aria-label={`Custom accent lightness ${l} percent`}
+                    className={`size-6 shrink-0 rounded-full transition-transform hover:scale-110 ${active ? "ring-2 ring-white/70" : "border border-white/25"}`}
+                    style={{ backgroundColor: hex }}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="my-1 border-t border-black/5 dark:border-white/5" />
+            <MenuItem
+              icon="power_settings_new"
+              label="Shutdown"
+              danger
+              onClick={() => { close(); setShutdownOpen(true); }}
+            />
+            <MenuItem
+              icon="logout"
+              label="Logout"
+              danger
+              onClick={() => { close(); onLogout(); }}
+            />
+          </div>
+        )}
+      </div>
+
+      <ChangelogModal isOpen={changelogOpen} onClose={() => setChangelogOpen(false)} />
+      <ConfirmModal
+        isOpen={shutdownOpen}
+        onClose={() => setShutdownOpen(false)}
+        onConfirm={handleShutdown}
+        title="Close Proxy"
+        message="Are you sure you want to close the proxy server?"
+        confirmText="Close"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isShuttingDown}
+      />
+    </>
+  );
+}
+
+HeaderMenu.propTypes = {
+  onLogout: PropTypes.func.isRequired,
+};

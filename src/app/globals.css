@@ -1,0 +1,1000 @@
+/* source() sets scan base to src/ for both webpack + Turbopack; auto-detection still skips binaries + gitignore */
+@import "tailwindcss" source("../../");
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Hide icon ligature text until font is ready */
+.material-symbols-outlined { opacity: 0; }
+.fonts-loaded .material-symbols-outlined { opacity: 1; transition: opacity .12s ease-out; }
+
+/* ============================================================
+   9Router palette — adopted from 9remote_private/web
+   Brand orange (dark) / soft coral (light), neutral warm bases
+   ============================================================ */
+:root {
+  /* Brand scale (light) - centered on #E56A4A */
+  --color-brand-50: #fdf1ed;
+  --color-brand-100: #fadccf;
+  --color-brand-200: #f4b59c;
+  --color-brand-300: #ee8d6a;
+  --color-brand-400: #ea7855;
+  --color-brand-500: #E56A4A;
+  --color-brand-600: #cc5236;
+  --color-brand-700: #a64027;
+  --color-brand-800: #7a2f1d;
+  --color-brand-900: #4d1e12;
+
+  /* Primary (legacy alias for backward compat with existing components) */
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
+
+  /* Surfaces & backgrounds (light) */
+  --color-bg: #FDFAF6;
+  --color-bg-alt: #F7F3EE;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f4f5;
+  --color-surface-3: #e7e7e9;
+  --color-sidebar: rgba(244, 241, 236, 0.85);
+
+  /* Borders */
+  --color-border: #e5e7eb;
+  --color-border-subtle: #f1f1f3;
+
+  /* Text */
+  --color-text: #0a0a0a;
+  --color-text-main: #0a0a0a;
+  --color-text-muted: #6B7280;
+  --color-text-subtle: #9CA3AF;
+
+  /* Status */
+  --color-danger: #cf222e;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+
+  /* Radius */
+  --radius-brand: 10px;
+  --radius-brand-lg: 14px;
+
+  /* Shadows */
+  --shadow-soft: 0 1px 2px 0 rgba(0,0,0,0.04);
+  --shadow-warm: 0 2px 12px -2px rgba(229, 106, 74, 0.18);
+  --shadow-elevated: 0 12px 28px -4px rgba(60, 50, 45, 0.06);
+  --shadow-elev:
+    inset 0 1px 0 0 rgba(255,255,255,0.8),
+    0 1px 2px rgba(15,23,42,0.04),
+    0 12px 36px -8px rgba(15,23,42,0.10);
+  --shadow-focus: 0 0 0 3px rgba(229,106,74,0.18);
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Brand scale (dark) - centered on #E56A4A, same as light for consistency */
+  --color-brand-50: #fdf1ed;
+  --color-brand-100: #fadccf;
+  --color-brand-200: #f4b59c;
+  --color-brand-300: #ee8d6a;
+  --color-brand-400: #ea7855;
+  --color-brand-500: #E56A4A;
+  --color-brand-600: #cc5236;
+  --color-brand-700: #a64027;
+  --color-brand-800: #7a2f1d;
+  --color-brand-900: #4d1e12;
+
+  --color-primary: #E56A4A;
+  --color-primary-hover: #cc5236;
+
+  /* Surfaces (dark neumorphism — single default theme, owner order
+     2026-11-02): near-black base, raised gradient slabs, soft dual
+     shadows (dark below-right, faint light above-left). */
+  --color-bg: #121214;
+  --color-bg-alt: #0d0d12;
+  --color-surface: #14141c;
+  --color-surface-2: #1a1a24;
+  --color-surface-3: #22222e;
+  --color-sidebar: #0c0c11;
+
+  --color-border: #26262f;
+  --color-border-subtle: #1c1c26;
+
+  --color-text: #f2f2f5;
+  --color-text-main: #f2f2f5;
+  --color-text-muted: #9b9ba8;
+  --color-text-subtle: #6a6a78;
+
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
+
+  /* Floating shadows — big soft drop shadows below the slab only, never
+     the embossed dual-light look. A faint top sheen (light catching the
+     slab's top edge) + a restrained accent aura on primary actions keep
+     it premium-trendy, not halo. Inset stays only for carved fields
+     and switch tracks. */
+  --shadow-soft: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 16px 32px rgba(0, 0, 0, 0.5);
+  --shadow-warm: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.55);
+  --shadow-elevated: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 48px rgba(0, 0, 0, 0.6);
+  --shadow-elev: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 48px rgba(0, 0, 0, 0.6);
+  --shadow-neu-inset: inset 3px 3px 6px rgba(0, 0, 0, 0.55), inset -3px -3px 6px rgba(255, 255, 255, 0.04);
+  --shadow-neu-btn: 0 8px 18px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 3px rgba(229, 106, 74, 0.18);
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   9Router Pro — accent themes (data-accent on <html>)
+   Overrides ONLY the brand scale + brand-tinted shadows, so an
+   accent costs zero extra CSS in components and works in both
+   light and dark mode. Default (no attribute) = original coral.
+   ============================================================ */
+:root[data-accent="violet"] {
+  --color-brand-50: #F5F3FF; --color-brand-100: #EDE9FE; --color-brand-200: #DDD6FE;
+  --color-brand-300: #C4B5FD; --color-brand-400: #A78BFA; --color-brand-500: #8B5CF6;
+  --color-brand-600: #7C3AED; --color-brand-700: #6D28D9; --color-brand-800: #5B21B6;
+  --color-brand-900: #4C1D95;
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px rgba(139, 92, 246, 0.20);
+  --shadow-focus: 0 0 0 3px rgba(139, 92, 246, 0.18);
+}
+:root[data-accent="azure"] {
+  --color-brand-50: #EFF6FF; --color-brand-100: #DBEAFE; --color-brand-200: #BFDBFE;
+  --color-brand-300: #93C5FD; --color-brand-400: #60A5FA; --color-brand-500: #3B82F6;
+  --color-brand-600: #2563EB; --color-brand-700: #1D4ED8; --color-brand-800: #1E40AF;
+  --color-brand-900: #1E3A8A;
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px rgba(59, 130, 246, 0.20);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+:root[data-accent="emerald"] {
+  --color-brand-50: #ECFDF5; --color-brand-100: #D1FAE5; --color-brand-200: #A7F3D0;
+  --color-brand-300: #6EE7B7; --color-brand-400: #34D399; --color-brand-500: #10B981;
+  --color-brand-600: #059669; --color-brand-700: #047857; --color-brand-800: #065F46;
+  --color-brand-900: #064E3B;
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px rgba(16, 185, 129, 0.20);
+  --shadow-focus: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+:root[data-accent="rose"] {
+  --color-brand-50: #FFF1F2; --color-brand-100: #FFE4E6; --color-brand-200: #FECDD3;
+  --color-brand-300: #FDA4AF; --color-brand-400: #FB7185; --color-brand-500: #F43F5E;
+  --color-brand-600: #E11D48; --color-brand-700: #BE123C; --color-brand-800: #9F1239;
+  --color-brand-900: #881337;
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px rgba(244, 63, 94, 0.20);
+  --shadow-focus: 0 0 0 3px rgba(244, 63, 94, 0.18);
+}
+:root[data-accent="amber"] {
+  --color-brand-50: #FFFBEB; --color-brand-100: #FEF3C7; --color-brand-200: #FDE68A;
+  --color-brand-300: #FCD34D; --color-brand-400: #FBBF24; --color-brand-500: #F59E0B;
+  --color-brand-600: #D97706; --color-brand-700: #B45309; --color-brand-800: #92400E;
+  --color-brand-900: #78350F;
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px rgba(245, 158, 11, 0.20);
+  --shadow-focus: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+:root[data-accent="cyan"] {
+  --color-brand-50: #ECFEFF; --color-brand-100: #CFFAFE; --color-brand-200: #A5F3FC;
+  --color-brand-300: #67E8F9; --color-brand-400: #22D3EE; --color-brand-500: #06B6D4;
+  --color-brand-600: #0891B2; --color-brand-700: #0E7490; --color-brand-800: #155E75;
+  --color-brand-900: #164E63;
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px rgba(6, 182, 212, 0.20);
+  --shadow-focus: 0 0 0 3px rgba(6, 182, 212, 0.18);
+}
+/* Custom accent: the entire scale is derived from one base color the user
+   picks freely (slider/picker in the header menu). --color-brand-base is
+   set inline on <html> and persisted in localStorage (constants/accents.js);
+   the default below keeps "custom" sane if the variable is ever missing. */
+:root {
+  --color-brand-base: #8B5CF6;
+}
+:root[data-accent="custom"] {
+  --color-brand-50: color-mix(in srgb, var(--color-brand-base) 8%, white);
+  --color-brand-100: color-mix(in srgb, var(--color-brand-base) 16%, white);
+  --color-brand-200: color-mix(in srgb, var(--color-brand-base) 32%, white);
+  --color-brand-300: color-mix(in srgb, var(--color-brand-base) 55%, white);
+  --color-brand-400: color-mix(in srgb, var(--color-brand-base) 78%, white);
+  --color-brand-500: var(--color-brand-base);
+  --color-brand-600: color-mix(in srgb, var(--color-brand-base) 82%, black);
+  --color-brand-700: color-mix(in srgb, var(--color-brand-base) 64%, black);
+  --color-brand-800: color-mix(in srgb, var(--color-brand-base) 48%, black);
+  --color-brand-900: color-mix(in srgb, var(--color-brand-base) 34%, black);
+  --color-primary: var(--color-brand-500); --color-primary-hover: var(--color-brand-600);
+  --shadow-warm: 0 2px 12px -2px color-mix(in srgb, var(--color-brand-base) 20%, transparent);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-brand-base) 18%, transparent);
+}
+/* Hue slider (Appearance section in the header menu). */
+input[type="range"].hue-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 9999px;
+  outline: none;
+}
+input[type="range"].hue-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+input[type="range"].hue-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+/* ============================================================
+   9Router Pro — Neumorphism default (dark only, owner order 2026-11-02,
+   refined same day: FLOATING, not embossed).
+   Premium floating slabs: lighter-than-page surface + thin uniform rim
+   + one big soft drop shadow below — the slab hovers above the
+   background, it is never extruded out of it (no light edge top-left,
+   no diagonal gradient, bottom edge never melts into the page).
+   Carved-in treatment stays only for fields and switch tracks.
+   This replaced the retired flat Dark Pro preset block. The app is
+   dark-only now, so these rules hang off .dark, not data-preset.
+   ============================================================ */
+.dark body {
+  background: #121214;
+}
+
+/* Floating slabs: clearly lighter than the page, thin uniform rim
+   outlining the sheet, big soft drop shadow below. The rim is the same
+   on all sides (an outline, not a bevel) so the slab reads as a sheet
+   hovering above the background, never extruded out of it. */
+.dark .bg-surface {
+  background-image: linear-gradient(180deg, rgba(26, 26, 36, 0.72), rgba(18, 18, 25, 0.82));
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid transparent;
+  border-radius: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 24px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.dark .bg-surface-2 {
+  background-image: linear-gradient(180deg, rgba(30, 30, 42, 0.60), rgba(22, 22, 30, 0.70));
+  border: 1px solid transparent;
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 20px rgba(0, 0, 0, 0.45);
+}
+.dark .bg-surface-3 {
+  background-image: linear-gradient(180deg, rgba(32, 32, 44, 0.55), rgba(24, 24, 32, 0.65));
+  border: 1px solid transparent;
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 14px rgba(0, 0, 0, 0.40);
+}
+
+/* Carved beds (code/log viewers, segmented tracks): inset, never raised. */
+.neu-inset {
+  background-color: #0e0e12;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: var(--shadow-neu-inset);
+}
+.dark pre[class*="dark:bg-white/5"] {
+  background-color: #0e0e12;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: var(--shadow-neu-inset);
+}
+
+/* Prompt Injection template carousel: swipeable strip, no visible
+   scrollbar, cards snap to the left edge. */
+.pi-carousel {
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+.pi-carousel::-webkit-scrollbar {
+  display: none;
+}
+.pi-carousel > * {
+  scroll-snap-align: start;
+}
+
+/* Segmented toggles, global: one inset track (like the reference's
+   Toggle Off) holding a single floating gradient pill for the active
+   choice — not two separate slabs with a seam. */
+.dark .seg-track {
+  background-color: #0e0e12;
+  box-shadow: var(--shadow-neu-inset);
+}
+
+/* Sidebar + header: same slab treatment, shape unchanged. */
+.dark aside,
+.dark header {
+  background-image: linear-gradient(180deg, #1c1c28, #13131a);
+  border-color: transparent;
+}
+.dark aside {
+  margin: 12px;
+  border-radius: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 48px rgba(0, 0, 0, 0.50);
+}
+.dark header {
+  margin: 12px 12px 0;
+  border-radius: 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Sidebar nav: hover lifts, active presses in. */
+.dark aside nav a {
+  color: #bcbcc4;
+  border-radius: 16px;
+}
+.dark aside nav a .material-symbols-outlined,
+.dark aside nav button .material-symbols-outlined {
+  color: color-mix(in srgb, var(--color-brand-500) 52%, #d9d9e4);
+}
+.dark aside nav a:hover {
+  background-image: linear-gradient(180deg, #1c1c28, #16161f);
+  box-shadow: var(--shadow-soft);
+}
+.dark aside nav a:hover .material-symbols-outlined {
+  color: var(--color-brand-400);
+}
+/* Active nav item: a lifted pill, not a pressed hole. */
+.dark aside nav a.text-primary {
+  background: color-mix(in srgb, var(--color-brand-500) 13%, transparent);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+}
+.dark aside nav a.text-primary .material-symbols-outlined {
+  color: var(--color-brand-400);
+}
+
+/* Header icons: bright neutral. */
+.dark header .material-symbols-outlined {
+  color: #c9c9d1;
+}
+
+/* Headings stay solid — gradient type reads as decoration. */
+.dark main h1,
+.dark main h2 {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: var(--color-text);
+}
+
+/* Fields carve in: darker bed + inset shadow, no border. */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark select {
+  background-color: #0e0e12;
+  border-color: transparent;
+  border-radius: 999px;
+  box-shadow: var(--shadow-neu-inset);
+}
+.dark textarea {
+  background-color: #0e0e12;
+  border-color: transparent;
+  border-radius: 20px;
+  box-shadow: var(--shadow-neu-inset);
+}
+
+/* Brand actions: accent gradient slab + drop shadow. Pressing lowers
+   the slab (shadow shrinks) instead of sinking it in. */
+.dark .bg-brand-500,
+.dark .bg-primary {
+  background-image: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-500) 50%, var(--color-brand-400));
+  box-shadow: var(--shadow-neu-btn);
+}
+/* Default violet accent: primary actions blend violet → fuchsia → pink,
+   like the reference image. Other accents keep their own family gradient. */
+html.dark[data-accent="violet"] .bg-brand-500,
+html.dark[data-accent="violet"] .bg-primary {
+  background-image: linear-gradient(135deg, #7C3AED, #C026D3 50%, #EC4899);
+}
+html.dark[data-accent="violet"] button[role="switch"][aria-checked="true"] {
+  background-image: linear-gradient(135deg, #7C3AED, #C026D3 50%, #EC4899);
+}
+.dark .bg-brand-500:active,
+.dark .bg-primary:active {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  filter: brightness(0.95);
+}
+
+/* Clickable cards: hover lifts the slab higher off the page. */
+.dark a.bg-surface,
+.dark button.bg-surface {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.dark a.bg-surface:hover,
+.dark button.bg-surface:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-warm);
+}
+
+/* Switches, reference-style: OFF = inset dark track + gray knob,
+   ON = clean gradient track + white knob, no glow. */
+.dark button[role="switch"] {
+  box-shadow: var(--shadow-neu-inset);
+}
+.dark button[role="switch"][aria-checked="true"] {
+  background-image: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-500) 50%, var(--color-brand-400));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+.dark button[role="switch"] > span {
+  background-image: linear-gradient(180deg, #d4d4d8, #a1a1aa);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+}
+html.dark button[role="switch"][aria-checked="true"] > span {
+  background-image: linear-gradient(180deg, #ffffff, #e4e4e7);
+}
+
+/* Selection + scrollbar follow the accent. */
+.dark ::selection {
+  background: color-mix(in srgb, var(--color-brand-500) 55%, transparent);
+  color: #ffffff;
+}
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #26262f;
+  border-radius: 8px;
+  border: 2px solid #121214;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-brand-500) 45%, #26262f);
+}
+
+/* ============================================================
+   Fix native select dropdowns in dark mode
+   ============================================================ */
+select {
+  color-scheme: light;
+}
+
+.dark select {
+  color-scheme: dark;
+}
+
+.dark select option {
+  background-color: var(--color-surface);
+  color: var(--color-text-main);
+}
+
+@theme inline {
+  /* Brand scale */
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
+
+  /* Primary aliases */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+
+  /* Semantic */
+  --color-bg: var(--color-bg);
+  --color-bg-alt: var(--color-bg-alt);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-surface-3: var(--color-surface-3);
+  --color-sidebar: var(--color-sidebar);
+  --color-border: var(--color-border);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-text: var(--color-text);
+  --color-text-main: var(--color-text-main);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-subtle: var(--color-text-subtle);
+  --color-accent: var(--color-brand-500);
+  --color-danger: var(--color-danger);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-info: var(--color-info);
+
+  /* Static fallbacks (explicit per-mode usage if needed) */
+  --color-bg-light: #FCFBF9;
+  --color-bg-dark: #1a1a1a;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #262626;
+  --color-sidebar-light: #F4F1EC;
+  --color-sidebar-dark: #1F1F1E;
+  --color-border-light: #e5e7eb;
+  --color-border-dark: #333333;
+  --color-text-main-light: #0a0a0a;
+  --color-text-main-dark: #ededed;
+  --color-text-muted-light: #6B7280;
+  --color-text-muted-dark: #9ca3af;
+
+  /* Radius */
+  --radius-brand: var(--radius-brand);
+  --radius-brand-lg: var(--radius-brand-lg);
+
+  /* Shadows */
+  --shadow-soft: var(--shadow-soft);
+  --shadow-warm: var(--shadow-warm);
+  --shadow-elevated: var(--shadow-elevated);
+  --shadow-elev: var(--shadow-elev);
+  --shadow-focus: var(--shadow-focus);
+
+  /* Font - Inter primary, Apple system fallback */
+  --font-sans: 'Nunito', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+}
+
+/* Base */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection - brand-tinted */
+::selection {
+  background-color: rgba(229, 106, 74, 0.25);
+  color: var(--color-primary);
+}
+.dark ::selection {
+  background-color: rgba(229, 106, 74, 0.3);
+  color: var(--color-brand-300);
+}
+
+/* iOS keyboard accent */
+input, textarea {
+  accent-color: var(--color-primary);
+}
+
+/* Scrollbar (custom-scrollbar utility kept for compat) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 20px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-primary);
+}
+
+/* Thin horizontal scrollbar - brand colored */
+.scroll-thin-x {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229, 106, 74, 0.55) transparent;
+}
+.dark .scroll-thin-x {
+  scrollbar-color: rgba(229, 106, 74, 0.55) transparent;
+}
+.scroll-thin-x::-webkit-scrollbar { height: 3px; }
+.scroll-thin-x::-webkit-scrollbar-track { background: transparent; }
+.scroll-thin-x::-webkit-scrollbar-thumb {
+  background: rgba(229, 106, 74, 0.55);
+  border-radius: 3px;
+}
+.dark .scroll-thin-x::-webkit-scrollbar-thumb {
+  background: rgba(229, 106, 74, 0.55);
+}
+
+/* Global thin mac-like scrollbars (overrides clunky Windows/Linux default) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 120, 0.35) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(180, 180, 180, 0.3) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(120, 120, 120, 0.35);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(120, 120, 120, 0.55);
+}
+.dark *::-webkit-scrollbar-thumb {
+  background-color: rgba(180, 180, 180, 0.3);
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(180, 180, 180, 0.5);
+}
+
+/* Reusable elevated card */
+.card-soft {
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-brand-lg);
+}
+.card-elev {
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-elev);
+  border-radius: var(--radius-brand-lg);
+}
+
+
+/* macOS Vibrancy */
+.bg-vibrancy {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.72);
+}
+.dark .bg-vibrancy {
+  background: rgba(38, 38, 38, 0.72);
+}
+
+/* macOS Traffic Lights */
+.traffic-lights {
+  display: flex;
+  gap: 8px;
+}
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.traffic-light.red { background: #FF5F56; }
+.traffic-light.yellow { background: #FFBD2E; }
+.traffic-light.green { background: #27C93F; }
+
+/* Material Symbols */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-outlined.fill-1 {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Disable text selection on buttons */
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Tailwind v4 dropped default button cursor — restore globally */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+label[for],
+summary,
+select {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin { animation: spin 1s linear infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideInFromTop {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.slide-in-right { animation: slideInFromRight 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.fade-in { animation: fadeIn 0.2s ease-out forwards; }
+.slide-in-top { animation: slideInFromTop 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+
+
+
+/* Landing-style faint grid overlay (use absolute pos inside relative parent) */
+.landing-grid {
+  background-image:
+    linear-gradient(to right, var(--color-accent) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-accent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.08;
+}
+.dark .landing-grid {
+  opacity: 0.04;
+}
+
+
+/* React Flow controls: match app theme */
+.react-flow-controls-custom {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.react-flow-controls-custom button {
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.react-flow-controls-custom button:last-child {
+  border-bottom: 0;
+}
+
+.react-flow-controls-custom button:hover {
+  background: var(--color-bg-alt);
+}
+
+/* Changelog markdown body */
+.changelog-body h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.changelog-body h1:first-child { margin-top: 0; }
+.changelog-body h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: var(--color-primary);
+}
+.changelog-body h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.4rem;
+}
+.changelog-body ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.changelog-body li { margin: 0.25rem 0; line-height: 1.6; }
+.changelog-body p { margin: 0.5rem 0; line-height: 1.6; }
+.changelog-body code {
+  background: var(--color-bg-alt);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-family: ui-monospace, monospace;
+}
+.changelog-body a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+.changelog-body hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+}
+
+/* ============================================================
+   opt67 — full-element reference match (CSS only, logic untouched).
+   Reference language: every element is a pill or a big-radius slab,
+   faces barely lighter than the page, float from a soft diffused
+   shadow, no outlines, no glow. Cards/sidebar/header float with
+   gaps; buttons + single-line fields are full pills; toggles are
+   gradient-track pills; sliders are thin tracks + white knobs.
+   ============================================================ */
+/* All buttons are pills — except switches (own geometry) and
+   card-buttons (slabs, keep 24px). */
+.dark button:not([role="switch"]):not(.bg-surface) {
+  border-radius: 999px;
+}
+.dark a.bg-brand-500,
+.dark a.bg-primary {
+  border-radius: 999px;
+}
+.dark .react-flow-controls-custom button {
+  border-radius: 8px;
+}
+/* Reusable elevated cards follow the reference radius. */
+.card-soft,
+.card-elev {
+  border-radius: 24px;
+}
+/* Sliders: thin dark track + white knob with drop shadow. The custom
+   color hue slider keeps its own rainbow styling — it is excluded. */
+.dark input[type="range"]:not(.hue-slider) {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  height: 24px;
+}
+.dark input[type="range"]:not(.hue-slider)::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #26262f;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.dark input[type="range"]:not(.hue-slider)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(180deg, #ffffff, #e4e4e7);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.dark input[type="range"]:not(.hue-slider)::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #26262f;
+}
+.dark input[type="range"]:not(.hue-slider)::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+/* Native progress: thin track + gradient fill. */
+.dark progress {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: #26262f;
+  overflow: hidden;
+}
+.dark progress::-webkit-progress-bar {
+  background: #26262f;
+  border-radius: 999px;
+}
+.dark progress::-webkit-progress-value {
+  background-image: linear-gradient(90deg, #7C3AED, #C026D3, #EC4899);
+  border-radius: 999px;
+}
+.dark progress::-moz-progress-bar {
+  background-image: linear-gradient(90deg, #7C3AED, #C026D3, #EC4899);
+  border-radius: 999px;
+}
+/* Tables: hairline rows only, small gray headers — no boxes. */
+.dark table th {
+  color: #9b9ba8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.dark table td,
+.dark table th {
+  border-color: transparent;
+}
+/* Dialogs + menus float as reference slabs. */
+.dark [role="dialog"] {
+  border-radius: 24px;
+  box-shadow: var(--shadow-elev);
+}
+.dark [role="menu"],
+.dark [role="listbox"] {
+  border-radius: 20px;
+  box-shadow: var(--shadow-elev);
+}
+
+/* ============================================================
+   opt69 — no lines, like the reference. Every outline, rim and
+   divider goes transparent: card borders, menu/table dividers,
+   bordered control boxes. Separation comes from soft shadows
+   and spacing only, never from a drawn line.
+   ============================================================ */
+.dark .border-white\/5,
+.dark .border-black\/5,
+.dark .border-border,
+.dark .border-border-subtle {
+  border-color: transparent;
+}
+.dark .react-flow-controls-custom {
+  border-color: transparent;
+}
+.dark .react-flow-controls-custom button {
+  border-bottom-color: transparent;
+}
+
+/* opt70 — featured gradient card, like the reference's purple hero
+   card: violet → fuchsia → deep purple, white content, violet glow
+   shadow. No tilt: the grid stays aligned on phone + laptop. */
+.dark .overview-hero {
+  background-image: linear-gradient(150deg, #7C3AED, #C026D3 55%, #4C1D95);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 24px 48px rgba(76, 29, 149, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+   opt71 — every remaining line goes transparent. opt69 only
+   covered /5 + border + border-subtle, but the codebase also
+   draws outlines with /10 /15 /20 /25, border/40–70, primary +
+   accent + success + error tints, divide utilities, and — the
+   biggest leftover — ring outlines (ring-1/ring-2 + colored
+   rings on cards and selected elements). Focus/hover variants
+   are untouched: they are different class tokens, so keyboard
+   focus and hover feedback survive; only static outlines die.
+   Plain border-primary is deliberately NOT covered: the login
+   spinner draws its arc with it.
+   ============================================================ */
+.dark .border-white\/10,
+.dark .border-black\/10,
+.dark .border-white\/15,
+.dark .border-black\/15,
+.dark .border-white\/20,
+.dark .border-black\/20,
+.dark .border-white\/25,
+.dark .border-border\/50,
+.dark .border-border\/40,
+.dark .border-border\/70,
+.dark .border-border\/60,
+.dark .border-primary\/40,
+.dark .border-primary\/50,
+.dark .border-primary\/30,
+.dark .border-primary\/20,
+.dark .border-accent\/20,
+.dark .border-accent\/30,
+.dark .border-accent\/60,
+.dark .border-success\/40,
+.dark .border-error\/20 {
+  border-color: transparent;
+}
+.dark .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-black\/5 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-border\/50 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-border\/30 > :not([hidden]) ~ :not([hidden]) {
+  border-color: transparent;
+}
+.dark .ring,
+.dark .ring-1,
+.dark .ring-2 {
+  --tw-ring-color: transparent;
+}
+.dark .outline-primary\/60 {
+  outline-color: transparent;
+}

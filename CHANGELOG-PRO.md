@@ -1,0 +1,226 @@
+# 9Router Pro — Changelog
+
+Pro releases are tagged `v<upstream>-pro.<n>` (e.g. `v0.5.104-pro.2`) and
+published as GitHub releases in this repo. The dashboard's update checker
+follows these releases.
+
+## v0.5.109-pro.26
+
+- **Edit-modal crash fixed**: clicking Edit on a key row in `/dashboard/endpoint` killed the whole page ("This page couldn't load"). Root cause was a TDZ ReferenceError in `KeyAccessControls.js` — the live-usage `useEffect` read `open` in its dependency array before `const [open, setOpen] = useState(false)` was declared below it. All state declarations are now hoisted above the effects; the same pattern was scanned across `src/` with no other occurrence. API-only smoke tests never caught it (the card list never mounts this component), so UI changes are now verified in a real browser before deploy.
+- **Per-model cooldowns (replaces parking a whole provider for one bad model)**: when a single model's failures alone reach the breaker threshold (5 across 2+ connections in 5 min), only that model cools down, with exponential backoff (60s → 120s → 240s, capped at 10 min), while the rest of the provider keeps serving. A success for the model clears its cooldown. A broad outage still trips the provider-wide breaker (failures spread thin across models accumulate in the provider bucket). This is the fix for the DeepAI pattern where two deterministically failing models parked the whole provider for over an hour while five models worked.
+- **OpenCode free-lane 429 classification**: a 429 carrying a quota reset (`resets_at` / `resets_in_seconds` / `Retry-After`) is never retried — retrying burns the quota window. A 429 whose message says "overloaded" with no reset is a transient capacity blip: retried up to 8 times with 800ms base backoff doubling to a 4000ms cap. Unknown 429s keep the previous no-retry behavior.
+- **Combo first-response grace**: after a combo member stalls past its first-response budget, it is excluded from that combo for 5 min (`COMBO_FIRST_RESPONSE_GRACE_MS`, 0 disables), then rejoins on its own — instead of burning the full timeout on every request. A success clears the grace at once. Single-member combos never grace (no fallback to prefer); all members in grace fails fast with a clear 504.
+- **`/v1/models` publishes `thinking_levels`** per model (from the existing registry data — previously computed but never exposed), so clients can see each model's reasoning levels.
+- **Stable JSON outbound bodies**: request bodies to upstream now serialize with sorted keys, so the same logical request always produces identical bytes and survives upstream prefix caching.
+- **Node floor**: root `package.json` now declares `engines.node >= 20.18.1` (the undici-8 outage class never applied to Pro — it already pins undici 7.30.1).
+- **Tests**: provider breaker 14/14 (7 existing unchanged + 7 new per-model), OpenCode overload 8/8, combo grace 4/4, stable JSON 4/4, combo suite 106/106.
+
+## v0.5.109-pro.25
+
+- **CLI readiness — the router never claims "running" when the server is down**: tray, TUI, and background-hide startup now gate on an HTTP readiness probe (`GET /api/health`, 15 s) and say plainly when the server did not start, with `doctor --port` and port-free hints (platform-aware: `fuser -k` on Unix, `netstat` + `taskkill` on Windows). A crashing server reaches a terminal state instead of looping silently ("Server keeps crashing — stopped respawning"). Port cleanup works without `lsof` (Linux `/proc` fallback; Windows netstat parser). Three startup-cleanup races fixed along the way (cleanup killing its own launcher, Hide zombie restart loop, `lsof` matching client sockets). This fixes the published-pro.24 bug behind complaint #1 / #2 ("This page couldn't load" on `/dashboard/endpoint`): the page itself was healthy — the CLI printed "running" while the server was dead. Note: `cli/cli.js` is byte-identical between pro.23 and pro.24, so the bug predates pro.24; it surfaced at the 24 update because updating means restarting, and the restart/orphan trap is what bites.
+- **Tests**: 83/83 CLI tests pass; fresh-install smoke covers tray/TUI/hide healthy + blocked-port + crash-loop + no-lsof paths. Windows path is unit-tested only (no Windows machine to run it on).
+
+## v0.5.109-pro.24
+
+- **Per-model editor (OmniRoute-style)**: every model row on Providers now has an Edit button — set Vision, PDF, Audio/Video input, Image/Audio output, Search, Tools, and Reasoning per model (Auto/On/Off), plus Context Window and Max Output overrides. Overrides apply at runtime and are published by `/api/models` and `/v1/models`; step-5-preview is corrected to vision + 1M context.
+- **First-run upgrade**: a built-in `free` combo (OpenCode free models) is seeded on fresh installs, `/v1/models` is honest with zero connections, Basic Chat works with zero connections, plus a first-request curl snippet and a first-run guide card.
+- **OpenCode 429 reset parsing**: 429 responses now parse `resets_at` / `resets_in_seconds` / `Retry-After` (HTTP-date included) so cooldowns follow the provider's reset instead of blind backoff (still capped at 30 min by the existing cooldown rule).
+- **Key live usage**: the Endpoint key panel polls live request/in-flight counts every 3 s while open instead of showing a frozen snapshot.
+- **Audit fixes M-1–M-6**: bulk imports capped at 50/batch, `/api/health` returns 503 when degraded, dashboard test/mutate endpoints throttled per IP+route, plus error-code centralization (partial: many routes still echo raw errors — follow-up, not a regression).
+- **Tests**: drifted assertions fixed test-only (combo call arity, localDb mock exports); 2 known-drift cases remain in the `/v1/models` zero-connection fixture.
+- **Changelog restored**: entries for pro.16–pro.23, previously only on master, are now included in this file.
+
+## v0.5.109-pro.23
+
+- **Clean-install startup crash fixed**: published packs now include the missing `cli/hooks` and `cli/src` trees (a `.npmignore` negation bug had stripped them from the pro.20/pro.21 packs, crashing every fresh install with a missing-module error), plus a fallback to the standalone build when `cli/app` is absent and a root `bin` entry. Every pack audit now includes a startup smoke test from the extracted pack. Note: pro.22 was never released — its hotfix is bundled here.
+- **Security fixes**: settings no longer leak the encrypted MITM sudo value; credential-bearing headers are masked in log files again (masking had been left disabled); API-key masking is unified across usage, webhook, and endpoint code.
+- **Basic Chat works again**: sending now goes through `/v1/chat/completions` with a user API-key picker, instead of a dashboard route that never existed. No new route added.
+- **Rotation hardening**: a first-response timeout of 0 now truly disables the timer; a client disconnect aborts promptly instead of hanging; rescue waits no longer hold the selection lock or wait on excluded accounts; sticky entries are only cleared after the fallback check; cooldown is the maximum of the executor reset time and the blind backoff.
+- **OpenCode wire updated to the v2 shape**: current client version, session-affinity headers, and the legacy request header dropped; endpoint paths unchanged while fresh-network proof is still pending.
+- **Reliability batch**: OIDC fetches now time out after 15s; import/restore returns 500 for server failures and missing notifications return 404; the test-models check no longer self-fetches without credentials, so it stops failing falsely.
+
+## v0.5.109-pro.21
+
+- **Packaging fix**: the pro.19/pro.20 packs were missing every `*/test/route.js` (a root `.npmignore` rule stripped all directories named `test` at any depth), so dashboard Test buttons failed with network errors. pro.21 restores all 7 test routes; the pack audit verifies 198/198 routes including them.
+
+## v0.5.109-pro.20
+
+- **Rotation reverted to the proven pattern**: balanced health tiers, windowed-LRU 32, sticky-random, provider breaker, and blind backoff replace the pro.19 rotation layers — Retry-After-aware 429 cooldown, latency-weighted picks, delayed hedging, and content-timeout failover are all reverted. The 60s combo first-response failover and connect-timeout fail-fast are kept.
+- **Console Log provider-only filter**: a Semua / Hanya provider toggle hides non-provider log rows (token refresh, auth, quota noise), with the choice persisted per browser.
+
+## v0.5.109-pro.19
+
+- **Smarter rotation**: Retry-After-aware 429 cooldown with 6h parking for balance-dead keys, latency-weighted picks inside the LRU window, and delayed-hedge racing for streaming combos — plus a 60s first-response failover that abandons a silent combo member, and connect timeouts that fail fast instead of stacking to ~250s.
+- **Accurate testing**: provider/model tests now show staged error reasons on the model card, and a peek deadline with zero content fails over instead of committing an empty stream.
+- **Dashboard**: a card for the provider with the most API keys.
+- **Updates fixed**: the manual-update panel installs the pinned registry version instead of GitHub master, so updates no longer land on a stale build.
+
+## v0.5.109-pro.18
+
+- **A dashboard made to be shown off**: a single dark neumorphism theme — floating glass cards, pill buttons and inputs, gradient toggles, hero-style numbers, spectrum charts, an opaque navbar, and Nunito throughout, done right on phone and laptop.
+- **Monitoring Dashboard**: a new first sidebar item with VPS specs, fastest and most-used providers, most-used API key, totals for providers, proxies, combos and keys, plus usage charts — all live, nothing fabricated.
+- **Built-in prompt templates**: a library of ready templates, titled by model and marked Bawaan (built-in). Read-only: copy or apply one to your own target yourself; nothing is auto-applied or bound to any model.
+- **Custom colours, dark to light**: pick any hue, then its shade with 6 dark-to-light dots per hue, an exact-colour dot, and a hex readout.
+- **Template carousel**: the template library swipes like cards on phone (arrows + dots on laptop), and the Templates header carries an icon-only reference button to an external prompt collection.
+- **Fresh screenshots**: Dashboard, Usage, Providers, Prompt Injection templates, and Chat script, all with real data.
+
+## v0.5.109-pro.17
+
+- **Bulk file import everywhere**: every bulk paste input now also takes files — Bulk Add API key (all API-key providers, `.txt`, one key per line, `name|key` supported), Bulk Import Codex (`.json`), Batch Import Proxies (`.txt`, one proxy per line), joining the GrokCli bulk modal which already had it. File content lands in the textarea, editable before submit; multiple files and drag-drop supported; no server change, existing submit paths handle the lines.
+- **Login via Browser fixes**: headed login now launches as root (`--no-sandbox`) and the on-demand playwright-core import works under ESM (chromium named export resolved via `.default`), so the button works on server installs instead of failing with "No Chrome/Chromium executable found" / "Cannot read properties of undefined (reading 'launchPersistentContext')".
+
+## v0.5.109-pro.16
+
+- **Re-audit fixes (1 critical + 11 major)**: database export/import now checks the CLI token value instead of its mere presence; the SSO-only test gate also fires when IdP fields change; response-cache and maintenance settings deep-merge instead of wiping nested config; a customized `INITIAL_PASSWORD` is accepted on first password set; quota endpoints refuse inactive connections; bulk-enable wording is honest about unknown quota with a refetch after toggle; import skips empty entries instead of deleting live injections; proxy health checks no longer reactivate operator-disabled pools; translator responses and logs mask credentials; single-key edits merge quota/limits instead of replacing them; the backup card counts variants.
+- **New providers (BYOK)**: OrcaRouter and TOTU AI, both OpenAI-compatible gateways with live catalog fetching. Kimi OAuth was already present from upstream, so no duplicate entry was added.
+- **Removals**: cross-provider catalog search is removed (it duplicated the provider shelf and cost a full-catalog fetch on every search).
+- **README**: title and credit line cleaned up, screenshots refreshed (providers, usage, prompt injection).
+
+## v0.5.109-pro.15
+
+### ADDITIONS FROM IMPLEMENTATION RUN
+
+- **Backend — honest models, quotas, health, reliability (P4-33, P3-30, D5/D6, G2/G6/G9/G10/G11/G14)**: shared combo dispatch for the top-level, nested, and solo branches, with one account-exhausted response across all 8 modality handlers; webhook events for usage/quota/error (off by default, HMAC-signed, credential fields masked by default) and scheduled backups verified present; a per-provider/per-model member attempt-cap override (exact provider/model > provider > global > 3, 0 disables); real AbortSignal propagation for System One and request-id correlation (`x-9router-request-id` on every response, threaded into usage rows and request details, filterable); honest `/v1/models` — zero stored connections no longer returns the static catalog, while noAuth-servable models still list and `auto:` targets are listed as servable models; non-chat usage accrual (embeddings exact, image when reported, TTS/STT estimated at chars/4 and marked estimated, search/fetch cost-only via costPerQuery, video request-only until a provider reports completion usage) plus a dashboard-only per-key usage breakdown API (`/api/usage/by-key`); provider summary health fields (`/api/providers?summary=1`: breakers with a pre-trip flag, health totals/by-provider/connections with tier and quarantine state) and a degraded signal on `/api/health` with liveness `ok` preserved.
+- **Frontend — first-run success (G1/G3/G5/G6/G13/G15/G16/G17/G20/G21)**: a dashboard home overview (status, keys, models, usage, quick links); a first-request snippet on Endpoint (key-aware curl, copy button, token-free shell variant); a flat restyle of ProviderTopology plus dead glow cleanup; `auto:` targets shown in model pickers; discoverability fixes (Kiro import affordance, quota vocabulary, usage proof links); mobile tap-target, hover-only, double-padding, and radius fixes; usage zero-data CTAs, log signposting, and a savings single-number cross-reference. The Basic Chat token restyle and the Skills loading state are deliberately left pending (see `9router-pro-audit-2/IMPLEMENTATION.md` for why).
+- **Upstream leftovers (0.5.111/0.5.112)**: Ollama-local embeddings (localhost-only, no key) and Ollama TTS (local synthesis under the same keyless rule); the Runcrate provider; the Nace provider (`drex-max` + `drex-v2.0`, `drex` alias); MiniMax code lease (automatic 30-minute lease, dashboard settings + release); pricing rows for `gpt-6.1-terra` + `kimi-k3.1-pro`; CommandCode 1.88 validate-route headers. Docker bake is documented as skipped — it has no effect on the npm/PM2 path.
+- **Rival-inspired, implemented originally (R1–R15)**: a zero-config free stack (freeStack settings, watchdog, auto combo creation, no-code onboarding path); a trust inbox (trustEvents + unread bell); a security log (per-key, 30-day retention); a combo advisor (catalog coverage, cost, latency, risk); catalog search (feeds + seeds, 7-day cache); a skills evaluator (evalSets/evalRuns, dashboard page); a variant sampling override; a semantic response cache (opt-in, embeddings-gated); at-rest credential encryption (`PRO_CREDENTIAL_KEY`; legacy rows stay plaintext until migrated — documented, not silent); a Pro CLI (doctor/dry-run/setup); a Termux install script; an E2E route inventory; packaging docs (the Electron build pipeline is deliberately not wired — documented).
+- **Docs**: CHANGELOG-PRO entries for pro.13–pro.15, README cleanup, and package metadata (repository, homepage, license).
+- **Capability-first ordering (P3-30)**: verified present, not re-built — the model catalog already exposes capabilities per entry, and combo serving floats capability-matching members first (stable sort, capacity order kept within tiers) via the default-on auto-switch, covered by an existing unit test.
+
+- **Direct variant routing**: a variant name routes directly to its backing provider/model with its prompt — no backing combo is created or kept in sync. `/v1/models` lists variants, and combo member failover is capped.
+- **Request reliability (P0 audit fixes)**: a generous, configurable total-request deadline; a dedicated mutex chain for round-robin/sticky selection; a fusion cap with cancellation; a shared attempt limiter capping every modality fallback loop; API key creation failures surfaced instead of silent; hot-path DB writes fail open; variant name safety (over-long names, alias collisions, and suffix budget rejected); combo failure status and message now come from the same member.
+- **Faster, safer reads (P1 audit fixes)**: key-scoped `/v1/models` cache with write invalidation and concurrent live resolvers under a shared timeout; a short settings cache with write invalidation; quota and rate limits enforced at every handler entry, with an `apiKey` index; auto-quarantine for credentials failing auth repeatedly; proxy honesty with a fail-closed strict mode; Kiro `profileArn` resolution distinguished from unusable ARNs, with region rewritten only when the source region is unknown; global `fallback` now means fallback everywhere; plus a correctness batch (flaky cap, error classification, usage accounting, migration, rescue).
+- **Upstream 0.5.111/0.5.112 ports (safe merges)**: dropped Codex image aliases shimmed, catalog updates, SSE error-frame surfacing, the lazy-runtime published-build fix, bulk-add opaque keys, OpenCode free-lane identity gates, translator/headroom fixes, and the Pi card, DeepSeek keccak, and CodeBuddy hooks.
+- **Dashboard scale and polish (P2 audit fixes)**: the header search box is scoped to the Providers page; Providers grids and the model picker use load-more windowing; Translator alerts became toasts and its entry is labeled `(debug)`; the sidebar and header now read `Profile & Settings`; Console Log gains a reconnect affordance and an empty-state explainer; remaining `alert()`/`confirm()` calls migrated to modals/toasts and the cyan glow dropped; quota naming, zero-data guidance, a summary hook, and first-run help added.
+- **Smarter routing and policy (P3 audit fixes)**: scored auto-routing with named variants (`auto:coding`, `auto:fast`, `auto:cheap`, `auto:headroom`) on Pro health tiers with sticky selection; per-key policy (expiry, cost caps, scoped usage view); three-layer resilience (provider breaker, connection cooldown, model lockout) with distinct timers and dashboard states; a per-combo strategy selector with an optional account pin per member; and a Pro-only changelog section in the release banner plus dead-code cleanup.
+- **Removals, each deliberate**: the Testing Studio page is gone (it duplicated the Injection Tester side-by-side comparison); the FirstRunChecklist is gone from Endpoint (removed, not fixed); the Token Saver custom prompt is gone (it duplicated the global prompt-injection scope — the global scope is the single home for a global instruction).
+- **Untouched by this release**: owner-reserved fates (landing page, pricing page, shadow routes, imageToText visibility) are not decided here.
+
+## v0.5.109-pro.14
+
+- **Automation menu**: four new cards — **Notifications** (Telegram + webhook), **Response cache**, **Two-factor authentication** (TOTP + backup codes), and **Database maintenance** — plus a **latency stats card** on the Usage page.
+- **Capacity Adapter variant fixes**: variant capacity handling corrected.
+- **Bulk API-key add, faster**: adds now run through a bounded 6-worker pool instead of one at a time.
+
+## v0.5.109-pro.13
+
+- **Sticky-random routing**: the router sticks to a working key until it dies, then re-rolls randomly — a successful key keeps serving its provider+model instead of rotating on every request.
+- **Variant backing, resolved automatically**: alias prefixes now resolve to routable node ids when a variant is saved, when a combo is saved, and on backup import — no more dead alias references.
+- **Variant prompt injection flows through combo members**: a variant used inside a combo now carries its prompt, not just when picked directly.
+- **Friendly backing labels everywhere**: combo cards, the combo edit form, the add-model modal, and the injection page all show readable backing names; custom provider icons no longer 404.
+- **Providers/combos render faster**: the connected-provider lookup is memoized.
+- **Settings consistency**: the `fallbackStrategy` default (`balanced`) is now stored instead of implied.
+- **Combo presets removed**: the presets API, library, and tests are gone; combos themselves are unchanged.
+- **Full audit pass**: 39 baseline failures resolved (38 fixed, 1 skipped for a dead upstream free channel); suite green, 4223 passed, 0 failed.
+
+## v0.5.109-pro.12
+
+- **Packaging fix**: this release ships the correct slim npm distribution. The pro.11 npm publish was staged from the wrong pack output and never went live — approve pro.12, not pro.11. No code changes from pro.11.
+
+## v0.5.109-pro.11
+
+- **Prompt Injection, now variant-based**: a prompt attaches to a custom variant name, not to the raw model. A variant is a custom name plus exactly one backing provider/model plus its prompt — picking the variant serves that model with its prompt, picking the raw model serves it without any prompt, so original model names are never disturbed. Variants resolve through an auto-created single-member combo of the same name, and renaming, re-backing or deleting a variant keeps that combo in sync. Model-coordinate injection is gone; entries from the old concept migrate to variants automatically, and a variant used inside another combo does not inject (use the variant directly).
+- **Prompt Injection page crash, fixed**: a leftover block from the removed copy-to-providers UI crashed the whole page on render. It is gone, and the page is verified loading in a real browser again.
+- **Proxy Pools pagination**: the page no longer downloads and renders every pool at once. The API pages server-side (10, 20 or 50 rows, with name search), so a fleet of thousands of pools opens as one small page instead of a multi-megabyte dump. Select-all is per page while cross-page picks persist, and bulk actions, health check and batch-import dedupe still cover the full filtered set.
+
+## v0.5.109-pro.10
+
+- **Rotation, optimized for huge fleets**: the windowed-LRU pick is now a single pass (about 200ms down to 5.6ms per pick at 18,719 accounts), with a duplicate-free overlay so bursts spread across distinct accounts, the mutex kept only for round-robin, and lastUsedAt writes deferred and batched instead of one write per pick.
+- **Prompt Injection, new concept — one prompt, one provider/model**: injection matching now keys on the resolved provider/model only. Combo names and bare model ids never match, custom labels are display-only, and the injection page no longer creates or edits combos — combos live on the combos page. The API rejects targets without a slash, and **Copy to other providers** copies an entry to every other provider serving the same bare model. Old combo-named and bare-id keys are converted automatically on import and once per process at runtime, with existing entries never overwritten.
+- **Injection picker, filtered**: the add-injection model picker lists provider models only — the Combos and Custom Injections categories are gone, since injected models are edited from the entry list instead.
+
+## v0.5.109-pro.9
+
+- **Providers page, final layout**: the page now reads top to bottom as Custom Providers (the OpenAI/Anthropic-compatible creation section), the All Connection Providers shelf, a dedicated **Provider Custom** section holding the custom providers you added, then OAuth, Free Tier and API Key providers. Every section carries its own **Test All** — the Provider Custom section included — so batch-testing parity holds across the whole page.
+- **Custom provider icons, auto-detected**: a custom provider's icon resolves itself — bundled artwork first, then the favicon of its base URL (walking up to the parent domain when needed), then initials. The Add Compatible modal shows a live icon preview as you type the Base URL.
+- **OpenCode Free, aligned with the official CLI**: the request wire format now mirrors OpenCode CLI 1.19.4 — user agent, the `/inference` endpoints and the per-request message id header — and the old placeholder note injected into free-model prompts is gone. Tool calls gain in-place fingerprint normalization (upstream PR #4972), so clients whose tool schemas would otherwise be rejected pass through unchanged in place.
+- **Proxy rotation over a picked subset**: a provider's random / round-robin proxy rotation can be pinned to a hand-picked subset of your pools instead of every active pool. The pool picker on the provider card is collapsible — it folds away with a selected-count summary once you're done choosing.
+- **No-auth providers, honestly labelled**: the ready-to-use card now states plainly that routing through a proxy pool uses **your own IP credentials only — no proxies are included**.
+- **Indonesian dashboard translation, complete**: all 1,827 dashboard strings are translated — every label, description, toast and help popover — in a trimmed, professional phrasing. No English leftovers anywhere in the dashboard.
+- **Donate points home**: the Donate modal now reads this project's own `donate.json` instead of upstream's endpoint — the Saweria channel is live.
+- **README, refreshed and slimmed**: new screenshots in the Dark Pro theme (orange accent) captured from a clean demo install, palette-compressed to a fraction of their former size; oversized bundled assets trimmed (a 2,700px provider icon shipped at 256px, the hero image cut from 758KB to 59KB).
+
+## v0.5.109-pro.8
+
+- **Balanced account selection — a new default routing strategy**: account selection is now health-aware and scale-proof, from a couple of accounts to tens of thousands. Clean accounts serve first; an account that just failed steps back as a suspect, serves only when no clean account is free, and heals automatically after an hour without proof of failure. Picks are windowed-LRU — a random choice among the 32 least-recently-used accounts — so no account is burned first and every account rests as long as possible. The "unavailable" dashboard label is honest now: it is only stamped for cooldowns of a minute or more, so a brief quota window or a proxy hiccup no longer brands a healthy key as dead. Fleets of 8 or fewer accounts get a rescue path — when everything is locked but the earliest lock lifts within 45 seconds, the request retries that account instead of failing outright. Round Robin and Fill First remain available under Profile → Routing Strategy.
+- **Pairs rotate their backing models**: a custom name carrying a prompt injection with several real models behind it (a pair) now rotates its starting model per request (round-robin), spreading traffic across the backing providers — the second model is no longer a passive stand-in that only wakes when the first one fails. A failure still falls through the remaining models in order, and any strategy set explicitly for the combo wins over this default.
+- **Operator logs in plain words**: one request now reads as one short story. The request line drops the FMT/MSG/THINK codes, the proxy line is a single line without pool UUIDs, errors are one line carrying the reason in plain words (402 quota exhausted, 429 rate limited) plus the upstream's own message instead of a raw JSON dump, and the completion line reads "done · 8.1s · first token 0.9s · in 45,231 · out 87".
+- **Console Log panel, rebuilt logcat-style**: log lines render as tidy rows — time, level badge (E/W/I/✓), short tag, session dot, message — with a Live indicator next to Clear, so the stream scans like a logcat viewer instead of a wall of green text.
+- **Bulk Add progress**: adding API keys in bulk now shows live progress (n of N, the current key, a progress bar) and locks the form until the run finishes, instead of a bare "Adding..." with no sense of scale. Single Save names its phase (Checking… / Saving…).
+
+## v0.5.109-pro.7
+
+- **Base updated to upstream 9Router v0.5.109**: all 39 upstream commits since v0.5.104 are merged in, and every Pro feature is preserved — Prompt Injection (Templates / Injections / Tester), per–API-key limits and token quotas, Anti-Flaky Guard, provider bulk tools, the proxy pool health check, and the backup system are unchanged.
+- **Smart Router (System One)**: combos gain an adaptive routing strategy — a decision model picks the best model for each request, with Smart Switch, Strict Lock and Per-Turn modes, its own policy dialog, and session stickiness.
+- **Combo list search**: the combos page filters locally with its own search box.
+- **Upstream custom system prompt**: Settings gains a user-authored custom prompt that stacks after Prompt Injections.
+- **Tougher combos**: a combo now advances to the next model when credits run out, on request-scoped 4xx responses, and on empty streaming responses, instead of ending the request.
+- **Streaming fixes**: missing tool-call ids are filled in and renamed tool names restored, keeping agentic clients intact.
+- Plus the rest of the upstream wave: SenseNova and web-cookie providers, Codex OAuth transcription, Gemini reference-image inputs, reasoning-effort support for OpenCode free models, and security bumps (Node 22.23.4 in Docker, undici 7.30.1).
+
+## v0.5.104-pro.6
+
+- **Apply Proxy to every connection**: the provider page's Apply Proxy dialog gains a scope switch — **Loaded** (the connections currently on screen, as before) or **All** (every connection of the provider, including pages never loaded). The All scope runs as one server-side pass in a single transaction, for all three modes: one pool for everyone, one-to-one rotation across the active pools, or unbind all. The dialog's pool list is now searchable and capped, so it stays usable with thousands of pools.
+- **Proxy Pools health check, rebuilt as a server job**: Health Check no longer fires one browser request per pool. One click starts a background job on the server (bounded concurrency, progress in the button, safe to refresh the page — the job keeps running and the page reconnects to it). Passing pools stay/become active; failing pools are deactivated and marked failed, and when the check finishes the dashboard **offers to delete the dead pools** right away — a **Delete failed** button is also there whenever failed pools exist. Pools still bound to a connection are never deleted. The button now sits next to the pool counts, always visible — no selection needed first.
+- **All Connection Providers shelf**: the Providers page gains a shelf directly under Custom Providers gathering **every provider that is currently on** — has connections (or is ready without auth) and is not fully disabled — from all categories, deduped, with the same cards and working toggles as their home sections. The shelf has its own **Test All**, which tests every active connection across providers as one stoppable job.
+
+## v0.5.104-pro.5.1
+
+- **Default port is now 20127**: Pro's default port moves from the inherited 20128 to **20127**, matching what `npm run start` already used. The Docker image and compose file, the CLI's default target, the dashboard's default self-addresses (CLI Tools cards, MITM, tunnels, SAML), the updater's app port, `.env.example`, and the README/CLAUDE/DOCKER docs all agree now. Existing installs are unaffected — an explicit `PORT` always wins; only new installs see the new default. The original 9Router stays on 20128, so the two can run side by side on one machine (see MIGRATION.md). Translated docs (gitbook, i18n READMEs) still show the old port in places and will catch up.
+- **README refreshed**: the screenshots are regenerated from the current build — the redesigned Prompt Injection page (Templates / Injections / Tester) and the current Providers page, captured on a clean demo install.
+
+## v0.5.104-pro.5
+
+- **Backup, completed**: the Settings page grows a dedicated Backup card. It shows what a backup actually contains (connections, API keys, combos, proxy pools, prompt injections, templates) and when the last one was taken; imports now open a **preview** of the file — version, date, contents — before anything is replaced. **Auto-backup** takes a full snapshot every day (on by default, keep the newest 7, adjustable 3–30), listed in the card with per-snapshot download and restore; restoring goes through the normal import path, so the pre-import safety backup still applies. Download/Import moved out of the Local Mode card into this one — one concern, one place.
+- **Selective backup & restore**: downloads can be scoped two ways — by **section** (providers & connections, API keys, combos, proxy pools, Prompt Injection, settings) and by **provider** (only the chosen providers' connections). A scoped file declares its scope and restores scoped: importing it replaces exactly the chosen sections, and a provider-scoped file replaces only those providers' connections, leaving everything else untouched. The import/snapshot preview offers the same section choice on the way in. Snapshots are always full backups.
+- **Default password is now `9routerpro`**: fresh installs (no saved password hash, no `INITIAL_PASSWORD`) start with `9routerpro` instead of the upstream `123456`. Existing installs keep their own password — nothing changes for them. The remote-login guard is unchanged: the default password still cannot be used from a non-local address until it is changed.
+- **Key Limits — per-API-key rate limits for reselling**: every API key can now carry its own limits, set on the Endpoint page next to the existing token quota: **requests per minute**, **tokens per minute**, **requests per hour**, **requests per day**, and **max concurrent requests**. Every field is optional (empty = unlimited) and fully configurable per key, so sellers and renters can shape each key to the plan they sold. A key that crosses a limit gets **HTTP 429 with a `Retry-After` header** and a message naming the limit it hit. Request windows and concurrency are tracked in memory (they reset on restart, like most rate limiters); tokens-per-minute is a soft check over the last minute of recorded usage — the same fail-open philosophy as the token quota, so a limiter error never blocks a chat. Limits ride along in Settings backups (new `keyLimits` scope), are cleared when their key is deleted, and the Endpoint page shows each key's live usage (requests this minute, tokens this minute, requests in flight). The Create API Key dialog now includes the key settings (access restriction, token quota, limits) at creation time, and a new **MIGRATION.md** documents moving from the original 9Router to Pro via backup export/import.
+- **Prompt Injection, redesigned**: the page is rebuilt around one concept — attach a prompt to any name your clients call. **Templates** are a pure prompt library (using one copies its content into an injection; the template itself never runs, and applying is preview-first). **Injections** are one unified list — one prompt per target (Global, or a model/combo name, optionally scoped to a single API key) — with a live **stack preview** showing exactly what one request would receive, in order (global → key → model → model+key). Every row is labeled by name kind — **Combo name / Real model / Custom name** — matching is three-form (the name requested, the resolved provider/model, the bare model id; first hit wins), and every section carries a small info icon opening a detailed "How it works" modal written in the original's voice. The built-in **tester** sends a real request through the router (single or A/B) and returns a plain REFUSED / ANSWERED verdict. The page now lives in the header's page map like every original page (title and skull icon in the navbar), and carries a blue **PRO** badge in the sidebar.
+- **Custom-name pairs**: a custom name (a combo such as `dpsk_un`) and its prompt injection are edited **together**. In the injection form, a combo-backed name shows its **Real models** as an editable chip set — the same multi-model editor as the Combos page — and saving renames/remodels the combo and saves the prompt as one action; the reverse works too (start from a real model, give it a custom name). End users only ever see the name they called.
+- **Auto proxy for connection tests**: with the new toggle on the Providers page, a connection that has no proxy of its own borrows one from the active standard proxy pools when tested; if the borrowed proxy fails its pre-check, the test falls back to a direct connection instead of failing the key. Explicit per-connection proxies keep their hard-fail semantics. Chat traffic is untouched.
+- **Usage page, hardened and completed**: usage stats no longer expose full API keys (masked + hashed buckets), live updates carry only the fields that change, zero-token requests are shown honestly with an undercount footnote, and the page gains CSV export of the loaded breakdown, a custom date range, a reachable **Logs** tab, and model/status filters in Details.
+- **Provider models, auto-detected**: a compatible provider's model list is read from its `/models` endpoint — detected models appear as one-click chips (with Add all and Refresh) instead of a blind import; the model picker also lists every Prompt Injection name as its own section, so an injected name can join a combo without manual copying.
+- **Interface polish, in the original's language**: the Dark Pro theme goes **flat** — solid surfaces, hairline borders, shadows only as one soft layer on floating elements (faster to paint, easier to read); the header now shows your display name (fixed handwriting style) with theme/preset/accent — including a free custom accent color — gathered into the header menu; the sidebar's modder credit and socials sit beside the window controls; dialogs render through a portal and clamp to the viewport, so they can no longer be clipped by the header. On the Providers page, **Test All** is a real, stoppable job and not-yet-connected providers collapse into a compact list; on the Combos page, model chips expand in place, the header gains search + filters, and the Vision/Audio pools can be emptied.
+
+## v0.5.104-pro.4.3
+
+- **Key Health page removed**: at the owner's call — per-key testing and management already live on the Providers pages, and the standalone page duplicated them. The `/dashboard/key-health` page, its API route, and its repo helpers are gone; everything else from pro.4 (Anti-Flaky Guard, backup completeness, token-saver upgrades) is unchanged.
+
+## v0.5.104-pro.4.2
+
+- **Key Health provider dropdown fix**: the page read the providers summary as an array, but the API returns an object keyed by `provider|authType` — the parse failed silently and the page sat empty (no auto-selected provider, all counters at 0). It now aggregates per provider and auto-selects the largest pool on open, as intended.
+- **Key Health audit pass**: search is properly debounced now (it previously fired a full pool re-classification on every keystroke), load failures surface a visible notice instead of silent zeros, and the provider dropdown shows a loading placeholder while the list is on its way.
+
+## v0.5.104-pro.4.1
+
+- **Mobile sidebar scroll fix**: on phones the navigation drawer grew with its content instead of filling the viewport, so menu entries below the fold (Media Providers children and everything under them) could not be reached — the nav's scroll area never engaged. The sidebar is now viewport-bounded (`h-full` + `max-h-dvh`, `min-h-0` on the nav region, `h-dvh` on the mobile drawer wrapper) and scrolls properly on mobile and desktop.
+
+## v0.5.104-pro.4
+
+- **Anti-Flaky Guard**: some upstreams answer HTTP 200 with an empty body or a degenerate repetition loop ("OK.OK.OK..."). The guard inspects each finished response (OpenAI / Claude / Responses / Gemini shapes — the body is probed directly, since some executor paths mislabel a JSON body as text/event-stream, and even malformed JSON is salvaged and judged by its content), and on a flaky verdict retries on another account of the same model instead of passing garbage to the client. Tool calls and reasoning-only answers are never flagged. Fail-open throughout: retries are capped (Settings → Token Saver page, default 2), the account is not marked unavailable, the last flaky response is rescued if the pool runs out, and recovered responses carry an `x-9router-pro-flaky-retries` header. Long live streams are released uninspected.
+- **Key Health Manager**: new dashboard page for pool hygiene at scale. Every connection of a provider is classified live — active / cooldown / unavailable / error / unknown / disabled — from the state the request path already maintains. Batch-test a page, a selection, or single keys (bounded chunks, same probe as the Providers page, status written back in place), delete selected keys, or delete all dead keys of a provider in one transactional sweep (single priority reorder, safe on five-figure pools).
+- **Backup completeness**: Settings backups now also carry Brief Mode settings and Token Saver savings stats (the last two Pro scopes that were still skipped); imports of older files still never wipe them.
+- **Modder socials**: GitHub and Telegram icons next to the "Modder by Gienetic" credit in the sidebar and on the login page, linking to the modder's accounts.
+
+## v0.5.104-pro.3
+
+- **Token Saver Pro**: three additions on the Token Saver page. **Savings panel** — RTK compression stats are now persisted (they were console-log only): estimated tokens saved, requests compressed, 14-day chart, top filters. **Brief Mode** — Caveman terseness scoped global / per API key / per model (model beats key beats global), overriding the global Caveman setting per request. **Test Bench** — paste any tool output and run the real RTK pipeline to preview savings before it ever hits a request.
+- **Dashboard performance**: no page fetches the full provider-connection list anymore — the remaining consumers (CLI tools, media providers, MITM, usage stats, Xiaomi auth) use the slim `?lite=1` projection, and the media connections card uses the server-side `?provider=` filter.
+- **Backup/restore hardened**: Settings backups now include Prompt Injections, per-key token quotas, and disabled models (previously skipped silently — a restore on a fresh install lost them). Every import first takes an automatic safety snapshot of the current database (kept in the data folder's `db/backups`, newest 3), and importing an older backup file no longer wipes Pro data the file knows nothing about. Backup files now carry a format + version marker.
+- **Prompt Injection polish**: Browse-models picker in the Injection Tester (no more typing model names from memory); starter preset chips and the page byline removed — the editor opens clean, write your own prompt.
+- **README**: real Pro screenshots (Prompt Injection, chat script editor, Providers) from a clean install.
+- **Repo hygiene**: upstream's auto-publishing workflows (Docker image, GitBook docs) removed; install instructions point at this repo (`npm install -g github:giienew/9router-pro`).
+
+## v0.5.104-pro.2
+
+- **Per-key token quotas**: give any API key a token budget per 24h / 7d / 30d (Endpoint page → key → Token quota), with live usage + progress. Upstream removed this feature — Pro brings it back, KV-backed and fail-open.
+- **Accent themes**: six dashboard accents (violet, azure, emerald, rose, amber, cyan) next to the original coral — one click in the header, saved per browser, applied before first paint. Fresh installs open in **violet**, the Pro signature.
+- **Prompt Injection**: dead simple — one injection per target (global, per API key, per model), stacked global → user → model. Each injection is a single system prompt (prepend or append) or a **chat script** — user/bot turns inserted as fake history. Resolution is snapshot-cached and system prompts run as a single grouped pass per position, through the router's own wire-aware injector (OpenAI, Claude, Gemini, Responses). Idempotent and fail-open. The dashboard page (skull icon) includes an A/B tester (injected vs bare) with refusal-phrase verdicts.
+- **Update notifications rewired** to this repo's GitHub releases (was: upstream npm package).
+
+## v0.5.104-pro.1
+
+First Pro release, based on 9Router v0.5.104 by decolua.
+
+- **System-prompt injection engine**: custom system prompts injected after format translation through the router's own wire-aware injector — the foundation Prompt Injection (pro.2) is built on.
+- Branding: 9Router Pro by Gienetic.

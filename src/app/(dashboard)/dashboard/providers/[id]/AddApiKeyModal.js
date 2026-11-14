@@ -1,0 +1,681 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import PropTypes from "prop-types";
+import { Button, Badge, Input, Modal, Select } from "@/shared/components";
+import { AI_PROVIDERS } from "@/shared/constants/providers";
+import { planBulkAdd, runBulkPool } from "@/shared/utils/bulkAdd";
+
+const BULK_PLACEHOLDER = `name1|sk-key1\nname2|sk-key2\nsk-key-only-auto-named`;
+
+export default function AddApiKeyModal({ isOpen, provider, providerName, isCompatible, isAnthropic, authType, authHint, website, proxyPools, error, existingNames, onSave, onBulkDone, onClose }) {
+  const NONE_PROXY_POOL_VALUE = "__none__";
+  const isOllamaLocal = provider === "ollama-local";
+  const isCookie = authType === "cookie";
+  const isXaiApiKey = provider === "xai" && !isCookie;
+  const credentialLabel = isCookie ? "Cookie Value" : provider === "qoder" || provider === "qoder-cn" ? "Personal Access Token (PAT)" : "API Key";
+  const credentialPlaceholder = isCookie
+    ? (provider === "grok-web" ? "sso=xxxxx... or just the raw value" : "eyJhbGciOi...")
+    : (isXaiApiKey ? "xai-..." : provider === "qoder" || provider === "qoder-cn" ? "pt-..." : "");
+
+  const isAzure = provider === "azure";
+  const isCloudflareAi = provider === "cloudflare-ai";
+  // Capability, not identity: gating this on `provider === "bedrock"` left bedrock-xai with no
+  // way to enter a profile at all, which is the same mistake as hardcoding the API-key exemption.
+  const usesAwsCredentialForm =
+    AI_PROVIDERS?.[provider]?.credentialForm === "aws";
+  // Registry-declared: names the providerSpecificData field that stands in for an API key, so
+  // a provider whose credential lives outside the key field can be saved without one.
+  const apiKeyOptionalWith = AI_PROVIDERS?.[provider]?.apiKeyOptionalWith || null;
+  const providerRegions = AI_PROVIDERS?.[provider]?.regions || null;
+  const defaultRegion = AI_PROVIDERS?.[provider]?.defaultRegion || providerRegions?.[0]?.id || "";
+
+  const [formData, setFormData] = useState({
+    name: "",
+    apiKey: "",
+    defaultModel: "",
+    priority: 1,
+    proxyPoolId: NONE_PROXY_POOL_VALUE,
+    ollamaHostUrl: "",
+  });
+  const [azureData, setAzureData] = useState({
+    azureEndpoint: "",
+    apiVersion: "2024-10-01-preview",
+    deployment: "",
+    organization: "",
+  });
+  const [cloudflareData, setCloudflareData] = useState({ accountId: "" });
+  const [bedrockData, setBedrockData] = useState({
+    profile: "",
+    region: "",
+    accessKeyId: "",
+    sessionToken: "",
+  });
+  const [region, setRegion] = useState(defaultRegion);
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const bulkPlaceholder = isCloudflareAi
+    ? `name1|sk-key1|acc123456\nname2|sk-key2|def789012\nsk-key-only-auto-named`
+    : provider === "qoder" || provider === "qoder-cn"
+      ? `name1|pt-xxxxx\nname2|pt-yyyyy\npt-only-auto-named`
+      : BULK_PLACEHOLDER;
+
+  const [mode, setMode] = useState("single"); // "single" | "bulk"
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResult, setBulkResult] = useState(null); // { success, failed, failures: [{name, reason}] }
+  const [bulkProgress, setBulkProgress] = useState(null); // { done, total, current } while adding
+  const [bulkFileInfo, setBulkFileInfo] = useState(null); // { filesCount, linesCount } after a .txt upload
+  const [bulkFileError, setBulkFileError] = useState("");
+  const [isBulkDragging, setIsBulkDragging] = useState(false);
+  const bulkFileInputRef = useRef(null);
+  const bulkCloseTimer = useRef(null);
+  // Auto-close timer must not fire after the modal unmounts (e.g. the user
+  // closes it manually during the result flash).
+  useEffect(() => () => {
+    if (bulkCloseTimer.current) clearTimeout(bulkCloseTimer.current);
+  }, []);
+
+  const buildProviderSpecificData = () => {
+    if (isOllamaLocal && formData.ollamaHostUrl.trim()) {
+      return { baseUrl: formData.ollamaHostUrl.trim() };
+    }
+    if (isAzure) {
+      return {
+        azureEndpoint: azureData.azureEndpoint,
+        apiVersion: azureData.apiVersion,
+        deployment: azureData.deployment,
+        organization: azureData.organization,
+      };
+    }
+    if (isCloudflareAi) {
+      return { accountId: cloudflareData.accountId };
+    }
+    if (usesAwsCredentialForm) {
+      // Only send what the user filled in: an empty `profile` would otherwise select profile
+      // mode and shadow static keys, since detectCredentialMode prefers a profile.
+      const data = {};
+      if (bedrockData.profile.trim()) data.profile = bedrockData.profile.trim();
+      if (bedrockData.region.trim()) data.region = bedrockData.region.trim();
+      if (bedrockData.accessKeyId.trim()) data.accessKeyId = bedrockData.accessKeyId.trim();
+      if (bedrockData.sessionToken.trim()) data.sessionToken = bedrockData.sessionToken.trim();
+      return Object.keys(data).length ? data : undefined;
+    }
+    if (providerRegions && region) {
+      return { region };
+    }
+    return undefined;
+  };
+
+  // One place decides whether the credential requirement is met. The button's disabled state and
+  // handleSubmit's early return both read it; encoding the rule twice is what let Save look
+  // clickable while silently doing nothing for profile-only Bedrock connections.
+  const apiKeySatisfied = () => {
+    const psd = buildProviderSpecificData();
+    if (apiKeyOptionalWith && psd?.[apiKeyOptionalWith]) return true;
+    // AWS static keys are a pair: a secret alone saves a connection that can never sign.
+    if (usesAwsCredentialForm) return !!formData.apiKey && !!psd?.accessKeyId;
+    return !!formData.apiKey;
+  };
+
+  const handleValidate = async () => {
+    setValidating(true);
+    try {
+      const res = await fetch("/api/providers/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, apiKey: formData.apiKey, providerSpecificData: buildProviderSpecificData() }),
+      });
+      const data = await res.json();
+      setValidationResult(data.valid ? "success" : "failed");
+    } catch {
+      setValidationResult("failed");
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!provider) return;
+    if (!isOllamaLocal && !apiKeySatisfied()) return;
+    if (!isOllamaLocal) {
+      // Non-ollama providers require a name
+      if (!formData.name) return;
+    }
+    if (isCompatible && !formData.defaultModel.trim()) return;
+
+    setSaving(true);
+    try {
+      let isValid = false;
+      try {
+        setValidating(true);
+        setValidationResult(null);
+        const res = await fetch("/api/providers/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, apiKey: formData.apiKey, providerSpecificData: buildProviderSpecificData() }),
+        });
+        const data = await res.json();
+        isValid = !!data.valid;
+        setValidationResult(isValid ? "success" : "failed");
+      } catch {
+        setValidationResult("failed");
+      } finally {
+        setValidating(false);
+      }
+
+      await onSave({
+        name: formData.name || (isOllamaLocal ? "Ollama Local" : ""),
+        apiKey: formData.apiKey,
+        defaultModel: isCompatible ? formData.defaultModel.trim() : undefined,
+        priority: formData.priority,
+        proxyPoolId: formData.proxyPoolId === NONE_PROXY_POOL_VALUE ? null : formData.proxyPoolId,
+        testStatus: isValid ? "active" : "unknown",
+        providerSpecificData: buildProviderSpecificData()
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkSubmit = async () => {
+    const lines = bulkText.split("\n");
+    if (!lines.length) return;
+    // Provisional display names only (opt21): the server allocates the
+    // final name from DB names, so the paginated existingNames here can
+    // never produce a false "free" name that then 409s. See bulkAdd.js.
+    const plan = planBulkAdd(lines, existingNames, { isCloudflareAi });
+    if (!plan.length) return;
+    setSaving(true);
+    setBulkResult(null);
+    setBulkProgress({ done: 0, total: plan.length, current: plan[0].name });
+    // Same per-key work as before (validate, then save, so bulk-added
+    // connections get a real status like single adds) — just overlapped
+    // instead of queued one-by-one. See runBulkPool in bulkAdd.js.
+    const worker = async (entry) => {
+      // Validate each key before saving so bulk-added connections get a
+      // real status (active/unknown) like single adds, instead of a
+      // hardcoded "unknown" that never flips until a manual test.
+      // Validation never gates the save: only the save result decides
+      // success, and the server-assigned name (not the provisional label)
+      // is authoritative.
+      let isValid = false;
+      try {
+        const vres = await fetch("/api/providers/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, apiKey: entry.apiKey }),
+        });
+        const vdata = await vres.json().catch(() => ({}));
+        isValid = !!vdata.valid;
+      } catch {
+        isValid = false;
+      }
+      try {
+        const res = await fetch("/api/providers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider,
+            apiKey: entry.apiKey,
+            baseName: entry.baseName,
+            autoAllocateName: true,
+            priority: 1,
+            testStatus: isValid ? "active" : "unknown",
+            ...(entry.providerSpecificData ? { providerSpecificData: entry.providerSpecificData } : {}),
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return { ok: true, assignedName: data?.connection?.name || null };
+        }
+        const data = await res.json().catch(() => ({}));
+        return {
+          ok: false,
+          reason: data?.code === "PROVIDER_NAME_CONFLICT"
+            ? "name conflict"
+            : (data?.error ? String(data.error).slice(0, 100) : `HTTP ${res.status}`),
+        };
+      } catch {
+        return { ok: false, reason: "network error" };
+      }
+    };
+    const { success, failed, failures } = await runBulkPool(plan, worker, {
+      concurrency: 6,
+      onProgress: (p) => setBulkProgress({ done: p.done, total: p.total, current: p.current }),
+    });
+    setSaving(false);
+    setBulkProgress(null);
+    setBulkResult({ success, failed, failures: failures || [] });
+    if (success > 0 && onBulkDone) onBulkDone();
+    // Auto-close once finished: the result line flashes briefly so the
+    // success/failed count is still seen, then the modal closes itself.
+    if (onClose) {
+      if (bulkCloseTimer.current) clearTimeout(bulkCloseTimer.current);
+      bulkCloseTimer.current = setTimeout(() => { onClose(); }, 1500);
+    }
+  };
+
+  // File import for bulk mode: same lines as paste, read from .txt files
+  // instead (pasting thousands of lines is painful). Content lands in the
+  // textarea so the existing submit path handles it unchanged.
+  const processBulkFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setBulkFileError("");
+    const txtFiles = Array.from(files).filter(
+      (file) => file.name.endsWith(".txt") || file.type === "text/plain" || file.type === ""
+    );
+    if (txtFiles.length === 0) {
+      setBulkFileError("Please select valid .txt files");
+      return;
+    }
+    try {
+      const parts = [];
+      for (const file of txtFiles) {
+        const text = (await file.text()).replace(/\r\n/g, "\n").replace(/\n+$/, "");
+        if (text.trim()) parts.push(text);
+      }
+      const combined = parts.join("\n");
+      const linesCount = combined.split("\n").filter((line) => line.trim()).length;
+      if (linesCount === 0) {
+        setBulkFileError("No keys found in selected files");
+        return;
+      }
+      setBulkText(combined);
+      setBulkFileInfo({ filesCount: txtFiles.length, linesCount });
+      setBulkResult(null);
+    } catch (err) {
+      setBulkFileError(`Error reading files: ${err.message}`);
+    }
+  };
+
+  const handleBulkFileInputChange = (e) => {
+    processBulkFiles(e.target.files);
+    if (e.target) e.target.value = "";
+  };
+
+  const handleBulkDragOver = (e) => {
+    e.preventDefault();
+    setIsBulkDragging(true);
+  };
+
+  const handleBulkDragLeave = (e) => {
+    e.preventDefault();
+    setIsBulkDragging(false);
+  };
+
+  const handleBulkDrop = (e) => {
+    e.preventDefault();
+    setIsBulkDragging(false);
+    processBulkFiles(e.dataTransfer.files);
+  };
+
+  if (!provider) return null;
+
+  return (
+    <Modal isOpen={isOpen} title={`Add ${providerName || provider} ${credentialLabel}`} onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        {/* Mode switcher. Hidden for AWS credentials: bulk lines carry only a key, so a
+            Bedrock entry would be saved with no access key id or profile and never work. */}
+        {!usesAwsCredentialForm && (
+          <div className="flex gap-2">
+            <Button size="sm" variant={mode === "single" ? "primary" : "ghost"} disabled={saving} onClick={() => { setMode("single"); setBulkResult(null); }}>Single</Button>
+            <Button size="sm" variant={mode === "bulk" ? "primary" : "ghost"} disabled={saving} onClick={() => { setMode("bulk"); setBulkResult(null); setBulkFileInfo(null); setBulkFileError(""); }}>Bulk Add</Button>
+          </div>
+        )}
+
+        {mode === "bulk" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-text-muted">
+              {isCloudflareAi
+                ? <>One key per line. Format: <code>name|apiKey|accountId</code> or just <code>apiKey</code> (auto-named by index).</>
+                : provider === "qoder" || provider === "qoder-cn"
+                  ? <>One PAT per line. Format: <code>name|pt-...</code> or just <code>pt-...</code> (auto-named by index).</>
+                  : <>One key per line. Format: <code>name|apiKey</code> or just <code>apiKey</code> (auto-named by index).</>
+              }
+            </p>
+            <div className="flex gap-2">
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                accept=".txt,text/plain"
+                multiple
+                className="hidden"
+                onChange={handleBulkFileInputChange}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                icon="upload_file"
+                onClick={() => bulkFileInputRef.current?.click()}
+                disabled={saving}
+              >
+                Upload .txt File
+              </Button>
+            </div>
+            <div
+              onDragOver={handleBulkDragOver}
+              onDragLeave={handleBulkDragLeave}
+              onDrop={handleBulkDrop}
+              className={`relative rounded border transition-colors ${
+                isBulkDragging
+                  ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                  : "border-accent/30 bg-sidebar"
+              }`}
+            >
+              <textarea
+                className="w-full rounded bg-transparent p-2 text-sm font-mono resize-y min-h-[140px] focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
+                placeholder={bulkPlaceholder}
+                value={bulkText}
+                disabled={saving}
+                onChange={(e) => { setBulkText(e.target.value); setBulkFileInfo(null); }}
+              />
+              {isBulkDragging && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-sidebar/90 rounded pointer-events-none backdrop-blur-xs">
+                  <span className="material-symbols-outlined text-3xl text-primary mb-1">upload_file</span>
+                  <span className="text-sm font-medium text-primary">
+                    Drop .txt files here
+                  </span>
+                </div>
+              )}
+            </div>
+            {bulkFileInfo && (
+              <div className="flex items-center gap-1.5 text-xs text-green-400 font-medium bg-green-500/10 border border-green-500/20 px-2.5 py-1.5 rounded">
+                <span className="material-symbols-outlined text-sm">check_circle</span>
+                <span>
+                  Loaded {bulkFileInfo.linesCount} line(s) from {bulkFileInfo.filesCount} file(s)
+                </span>
+              </div>
+            )}
+            {bulkFileError && (
+              <p className="text-xs text-red-500 break-words">{bulkFileError}</p>
+            )}
+            {saving && bulkProgress && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-xs text-text-muted">
+                  <span>Adding {bulkProgress.done} of {bulkProgress.total} — {bulkProgress.current}</span>
+                  <span>{Math.round((bulkProgress.done / bulkProgress.total) * 100)}%</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded bg-white/10">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${(bulkProgress.done / bulkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {bulkResult && (
+              <>
+                <div className={`text-sm font-medium ${bulkResult.failed > 0 ? "text-yellow-400" : "text-green-400"}`}>
+                  ✓ {bulkResult.success} added{bulkResult.failed > 0 ? `, ✗ ${bulkResult.failed} failed` : ""}
+                </div>
+                {bulkResult.failures && bulkResult.failures.length > 0 && (
+                  <div className="text-xs text-text-muted">
+                    <div>
+                      {Object.entries(bulkResult.failures.reduce((acc, f) => {
+                        acc[f.reason] = (acc[f.reason] || 0) + 1;
+                        return acc;
+                      }, {})).map(([reason, count]) => `${reason} (${count})`).join(" · ")}
+                    </div>
+                    {bulkResult.failures.slice(0, 5).map((f, i) => (
+                      <div key={`${f.name}-${i}`}>{f.name} — {f.reason}</div>
+                    ))}
+                    {bulkResult.failures.length > 5 && (
+                      <div>…and {bulkResult.failures.length - 5} more</div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex gap-2">
+              <Button onClick={handleBulkSubmit} fullWidth disabled={saving || !bulkText.trim()}>
+                {saving ? (bulkProgress ? `Adding ${bulkProgress.done}/${bulkProgress.total}...` : "Adding...") : "Add All Keys"}
+              </Button>
+              <Button onClick={onClose} variant="ghost" fullWidth disabled={saving}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        {mode === "single" && (<>
+        <Input
+          label="Name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder={isOllamaLocal ? "Ollama Local" : "Production Key"}
+        />
+        {isOllamaLocal && (
+          <div className="flex gap-2">
+            <Input
+              label="Ollama Host URL"
+              value={formData.ollamaHostUrl}
+              onChange={(e) => setFormData({ ...formData, ollamaHostUrl: e.target.value })}
+              placeholder="http://localhost:11434"
+              className="flex-1"
+            />
+            <div className="pt-6">
+              <Button onClick={handleValidate} disabled={validating || saving} variant="secondary">
+                {validating ? "Checking..." : "Check"}
+              </Button>
+            </div>
+          </div>
+        )}
+        {!isOllamaLocal && (
+          <div className="flex gap-2">
+            <Input
+              label={credentialLabel}
+              type={isCookie ? "text" : "password"}
+              value={formData.apiKey}
+              onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+              placeholder={credentialPlaceholder}
+              className="flex-1"
+            />
+            <div className="pt-6">
+              <Button onClick={handleValidate} disabled={!apiKeySatisfied() || validating || saving} variant="secondary">
+                {validating ? "Checking..." : "Check"}
+              </Button>
+            </div>
+          </div>
+        )}
+        {isXaiApiKey && (
+          <p className="text-xs text-text-muted">
+            Use a direct xAI API key from console.x.ai. This is separate from Grok Build OAuth.
+          </p>
+        )}
+        {isCookie && authHint && (
+          <p className="text-xs text-text-muted">
+            {authHint}
+            {website && (
+              <>
+                {" "}
+                <a href={website} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                  Open {website.replace(/^https?:\/\//, "")}
+                </a>
+              </>
+            )}
+          </p>
+        )}
+        {providerRegions && (
+          <Select
+            label="Region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            options={providerRegions.map((r) => ({ value: r.id, label: r.label }))}
+          />
+        )}
+        {isCompatible && (
+          <Input
+            label="Default Model"
+            value={formData.defaultModel}
+            onChange={(e) => setFormData({ ...formData, defaultModel: e.target.value })}
+            placeholder={isAnthropic ? "claude-3-5-sonnet-latest" : "gpt-4o-mini"}
+          />
+        )}
+        {isOllamaLocal && (
+          <p className="text-xs text-text-muted">
+            Leave blank to use <code>http://localhost:11434</code>. For remote Ollama, enter the full host URL (e.g. <code>http://192.168.1.10:11434</code>).
+          </p>
+        )}
+        {validationResult && (
+          <Badge variant={validationResult === "success" ? "success" : "error"}>
+            {validationResult === "success" ? "Valid" : "Invalid"}
+          </Badge>
+        )}
+        {error && (
+          <p className="text-xs text-red-500 break-words">{error}</p>
+        )}
+        {isCompatible && (
+          <p className="text-xs text-text-muted">
+            Enter the model ID exactly as your compatible endpoint expects it. This model will be saved as the connection default.
+          </p>
+        )}
+        {isCloudflareAi && (
+          <div className="bg-sidebar/50 p-4 rounded-lg border border-accent/20">
+            <h3 className="font-semibold mb-3 text-sm">Cloudflare Workers AI</h3>
+            <Input
+              label="Account ID"
+              value={cloudflareData.accountId}
+              onChange={(e) => setCloudflareData({ ...cloudflareData, accountId: e.target.value })}
+              placeholder="abc123def456..."
+            />
+            <p className="text-xs text-text-muted mt-2">
+              Find your Account ID in the right sidebar of <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">dash.cloudflare.com</a>
+            </p>
+          </div>
+        )}
+        {usesAwsCredentialForm && (
+          <div className="bg-sidebar/50 p-4 rounded-lg border border-accent/20">
+            <h3 className="font-semibold mb-3 text-sm">AWS Bedrock Credentials</h3>
+            <div className="flex flex-col gap-3">
+              <Input
+                label="AWS Profile (SSO — recommended)"
+                value={bedrockData.profile}
+                onChange={(e) => setBedrockData({ ...bedrockData, profile: e.target.value })}
+                placeholder="my-sso-profile"
+              />
+              <Input
+                label="Region"
+                value={bedrockData.region}
+                onChange={(e) => setBedrockData({ ...bedrockData, region: e.target.value })}
+                placeholder="us-east-1"
+              />
+            </div>
+            <p className="text-xs text-text-muted mt-2">
+              Set a profile from <code>~/.aws/config</code> and leave the API key empty, then run
+              {" "}<code>aws sso login --profile {bedrockData.profile || "my-sso-profile"}</code>.
+              Credentials refresh automatically.
+            </p>
+            <div className="flex flex-col gap-3 mt-4">
+              <Input
+                label="Access Key ID (only for static keys)"
+                value={bedrockData.accessKeyId}
+                onChange={(e) => setBedrockData({ ...bedrockData, accessKeyId: e.target.value })}
+                placeholder="AKIA..."
+              />
+              <Input
+                label="Session Token (only for temporary ASIA… keys)"
+                type="password"
+                value={bedrockData.sessionToken}
+                onChange={(e) => setBedrockData({ ...bedrockData, sessionToken: e.target.value })}
+                placeholder="FwoGZXIvYXdz..."
+              />
+            </div>
+            <p className="text-xs text-text-muted mt-2">
+              For static keys instead: put the AWS <strong>secret</strong> access key in the API Key
+              field above and the access key id here. A profile, if set, takes precedence.
+            </p>
+          </div>
+        )}
+        {isAzure && (
+          <div className="bg-sidebar/50 p-4 rounded-lg border border-accent/20">
+            <h3 className="font-semibold mb-3 text-sm">Azure OpenAI Configuration</h3>
+            <div className="flex flex-col gap-3">
+              <Input
+                label="Azure Endpoint"
+                value={azureData.azureEndpoint}
+                onChange={(e) => setAzureData({ ...azureData, azureEndpoint: e.target.value })}
+                placeholder="https://your-resource.openai.azure.com"
+              />
+              <Input
+                label="Deployment Name"
+                value={azureData.deployment}
+                onChange={(e) => setAzureData({ ...azureData, deployment: e.target.value })}
+                placeholder="gpt-4"
+              />
+              <Input
+                label="API Version"
+                value={azureData.apiVersion}
+                onChange={(e) => setAzureData({ ...azureData, apiVersion: e.target.value })}
+                placeholder="2024-10-01-preview"
+              />
+              <Input
+                label="Organization"
+                value={azureData.organization}
+                onChange={(e) => setAzureData({ ...azureData, organization: e.target.value })}
+                placeholder="Organization ID"
+              />
+            </div>
+          </div>
+        )}
+
+        <Input
+          label="Priority"
+          type="number"
+          value={formData.priority}
+          onChange={(e) => setFormData({ ...formData, priority: Number.parseInt(e.target.value) || 1 })}
+        />
+
+        <Select
+          label="Proxy Pool"
+          value={formData.proxyPoolId}
+          onChange={(e) => setFormData({ ...formData, proxyPoolId: e.target.value })}
+          options={[
+            { value: NONE_PROXY_POOL_VALUE, label: "None" },
+            ...(proxyPools || []).map((pool) => ({ value: pool.id, label: pool.name })),
+          ]}
+          placeholder="None"
+        />
+
+        {(proxyPools || []).length === 0 && (
+          <p className="text-xs text-text-muted">
+            No active proxy pools available. Create one in Proxy Pools page first.
+          </p>
+        )}
+
+        <p className="text-xs text-text-muted">
+          Legacy manual proxy fields are still accepted by API for backward compatibility.
+        </p>
+
+        <div className="flex gap-2">
+          <Button onClick={handleSubmit} fullWidth disabled={saving || (!isOllamaLocal && (!formData.name || !apiKeySatisfied())) || (isCompatible && !formData.defaultModel.trim()) || (isAzure && (!azureData.azureEndpoint || !azureData.deployment || !azureData.organization)) || (isCloudflareAi && !cloudflareData.accountId)}>
+            {saving ? (validating ? "Checking..." : "Saving...") : "Save"}
+          </Button>
+          <Button onClick={onClose} variant="ghost" fullWidth>
+            Cancel
+          </Button>
+        </div>
+        </>)}
+      </div>
+    </Modal>
+  );
+}
+
+AddApiKeyModal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  provider: PropTypes.string,
+  providerName: PropTypes.string,
+  isCompatible: PropTypes.bool,
+  isAnthropic: PropTypes.bool,
+  authType: PropTypes.string,
+  authHint: PropTypes.string,
+  website: PropTypes.string,
+  proxyPools: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string,
+    name: PropTypes.string,
+  })),
+  error: PropTypes.string,
+  existingNames: PropTypes.arrayOf(PropTypes.string),
+  onSave: PropTypes.func.isRequired,
+  onBulkDone: PropTypes.func,
+  onClose: PropTypes.func.isRequired,
+};
