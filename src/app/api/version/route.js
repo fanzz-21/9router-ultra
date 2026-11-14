@@ -1,9 +1,9 @@
 import https from "https";
 import pkg from "../../../../package.json" with { type: "json" };
 
-// 9Router Pro — update checks follow the Pro GitHub repo's releases
+// 9Router Ultimate — update checks follow the project GitHub repo's releases
 // (tags like "v0.5.104-pro.2"), not the upstream npm package.
-const PRO_REPO = "giienew/9router-pro";
+const PRO_REPO = "fanzz-21/9router-ultra";
 const VERSION_CACHE_TTL_MS = 3600000; // cache latest-release lookup for 1h
 
 // Survive hot reload; one cache per process
@@ -14,7 +14,7 @@ function fetchLatestVersion() {
   return new Promise((resolve) => {
     const req = https.get(
       `https://api.github.com/repos/${PRO_REPO}/releases/latest`,
-      { timeout: 4000, headers: { "User-Agent": "9router-pro", Accept: "application/vnd.github+json" } },
+      { timeout: 4000, headers: { "User-Agent": "9router-ultimate", Accept: "application/vnd.github+json" } },
       (res) => {
         let data = "";
         res.on("data", (chunk) => (data += chunk));

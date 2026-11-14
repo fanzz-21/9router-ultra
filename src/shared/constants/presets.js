@@ -1,4 +1,4 @@
-// 9Router Pro — single default theme.
+// 9Router Ultimate — single default theme.
 // The Ori and Dark Pro presets were removed (owner order 2026-11-02): the
 // dashboard now has exactly one look — dark neumorphism, premium floating
 // surfaces. The module stays so old imports keep working: every stored

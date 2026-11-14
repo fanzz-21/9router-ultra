@@ -1,4 +1,4 @@
-// 9Router Pro — Prompt Injection + injector tests (vitest, upstream harness).
+// 9Router Ultimate — Prompt Injection + injector tests (vitest, upstream harness).
 // Run from tests/: npx vitest run pro/prompt-injection.test.js
 import assert from "node:assert";
 import { injectSystemPrompt, injectChatTurns } from "open-sse/rtk/systemInject.js";

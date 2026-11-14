@@ -1,12 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# 9Router Pro — Termux install (R15 packaging).
-# Installs Node + git, clones Pro, installs deps, then hands off to the
+# 9Router Ultimate — Termux install (R15 packaging).
+# Installs Node + git, clones the project, installs deps, then hands off to the
 # CLI wizard. No new artwork, no forked server path: the same
 # `npm start` (custom-server.js) the desktop install uses.
-# Usage:  bash termux-install.sh [--dir ~/9router-pro] [--port 20127]
+# Usage:  bash termux-install.sh [--dir ~/9router-ultimate] [--port 20127]
 set -euo pipefail
 
-DIR="${HOME}/9router-pro"
+DIR="${HOME}/9router-ultimate"
 PORT="20127"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -23,7 +23,7 @@ if [ -d "$DIR/.git" ]; then
   echo "Updating existing checkout at $DIR ..."
   git -C "$DIR" pull --ff-only
 else
-  git clone https://github.com/giienew/9router-pro.git "$DIR"
+  git clone https://github.com/fanzz-21/9router-ultra.git "$DIR"
 fi
 
 cd "$DIR"

@@ -1,4 +1,4 @@
-// Plain-words log helpers (9Router Pro): log lines are read by operators,
+// Plain-words log helpers (9Router Ultimate): log lines are read by operators,
 // so durations must be human ("1.3s", not "1300ms") and statuses must say
 // what they mean ("402 quota exhausted", not a bare number plus raw body).
 import { describe, expect, it } from "vitest";

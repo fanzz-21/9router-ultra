@@ -159,9 +159,9 @@ export default function LoginPage() {
       <div className="landing-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-1">9Router Pro</h1>
+          <h1 className="text-3xl font-bold text-primary mb-1">9Router Ultimate</h1>
           <p className="mb-2 text-xs text-text-subtle">
-            Modder by <span className="font-semibold text-brand-500">Gienetic</span>
+            AI Infrastructure Management
           </p>
           <div className="mb-3 flex items-center justify-center">
             <ModderSocials />

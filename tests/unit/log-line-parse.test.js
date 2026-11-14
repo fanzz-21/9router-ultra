@@ -1,4 +1,4 @@
-// Console Log panel parser (9Router Pro): raw console lines become
+// Console Log panel parser (9Router Ultimate): raw console lines become
 // MatLog-style rows — time, level badge, short tag, session dot, message.
 // Cases are the real line shapes the logger emits.
 import { describe, expect, it } from "vitest";

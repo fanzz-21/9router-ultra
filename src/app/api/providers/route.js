@@ -54,12 +54,12 @@ async function normalizeProxyPoolId(proxyPoolId) {
   return { proxyPoolId: normalizedId };
 }
 
-// 9Router Pro: summary stats are computed from up to tens of thousands of
+// 9Router Ultimate: summary stats are computed from up to tens of thousands of
 // rows — cache them briefly so reopening the providers page is instant.
 // The cache lives in @/lib/providerStatsCache so every providers write path
 // (PATCH, POST, [id] PUT/DELETE, test-batch) can invalidate it.
 
-// 9Router Pro: lite projection for picker/list consumers that only need
+// 9Router Ultimate: lite projection for picker/list consumers that only need
 // identity + status — drops error strings, model locks, and token material.
 function liteConnection(c) {
   const psd = c.providerSpecificData || {};
@@ -172,7 +172,7 @@ export async function GET(request) {
   }
 }
 
-// PATCH /api/providers - 9Router Pro: bulk-toggle every connection of one
+// PATCH /api/providers - 9Router Ultimate: bulk-toggle every connection of one
 // provider (the list page's provider switch) in a single UPDATE.
 export async function PATCH(request) {
   try {

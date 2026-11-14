@@ -1,4 +1,4 @@
-// Token Saver savings stats (9Router Pro) — persists RTK compression
+// Token Saver savings stats (9Router Ultimate) — persists RTK compression
 // results that chatCore previously only wrote to the console log.
 //   scope "tokenSaverStats": key "YYYY-MM-DD" (UTC) →
 //     { requests, bytesBefore, bytesAfter, hits,

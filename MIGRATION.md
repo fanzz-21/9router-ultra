@@ -1,22 +1,22 @@
-# Migrating from 9Router (original) to 9Router Pro
+# Migrating from 9Router (original) to 9Router Ultimate
 
-9Router Pro is a **standalone edition** built on the same 9Router v0.5.104
+9Router Ultimate is a **standalone edition** built on the same 9Router v0.5.104
 codebase — it is not a plugin, and it does not connect to or control your
-existing 9Router install. You run Pro *instead of* the original, and your
+existing 9Router install. You run 9Router Ultimate *instead of* the original, and your
 data moves over through the built-in backup file. The whole migration takes
 about two minutes, and your client API keys keep working unchanged.
 
-> **Short version:** export a backup from the original → install Pro → import
+> **Short version:** export a backup from the original → install 9Router Ultimate → import
 > the backup. Done.
 
 ## Before you start
 
-- Keep your original 9Router running until Pro is verified — the import reads
+- Keep your original 9Router running until 9Router Ultimate is verified — the import reads
   a file, it never touches the original's data, so rollback is simply
   "keep using the original".
-- A fresh Pro install asks you to set a dashboard password on first run. It
+- A fresh 9Router Ultimate install asks you to set a dashboard password on first run. It
   does **not** inherit the original's password (importing a backup does not
-  change it either) — Pro keeps its own.
+  change it either) — 9Router Ultimate keeps its own.
 
 ## Step 1 — Export from the original 9Router
 
@@ -26,28 +26,28 @@ about two minutes, and your client API keys keep working unchanged.
 3. Save the downloaded `.json` file somewhere safe — it contains your
    provider credentials and API keys.
 
-## Step 2 — Install 9Router Pro
+## Step 2 — Install 9Router Ultimate
 
-Follow the **Quick Start (Pro)** in the [README](./README.md) (from source or
-Docker). The original listens on port 20128 by default and Pro on **20127**,
+Follow the **Quick Start (9Router Ultimate)** in the [README](./README.md) (from source or
+Docker). The original listens on port 20128 by default and 9Router Ultimate on **20127**,
 so both can run side by side on the same machine while you verify — they are
 separate apps with separate data. When you are ready to switch, point your
-clients at Pro and stop the original.
+clients at 9Router Ultimate and stop the original.
 
-## Step 3 — Import the backup into Pro
+## Step 3 — Import the backup into 9Router Ultimate
 
-1. Open the Pro dashboard → **Profile** page.
+1. Open the 9Router Ultimate dashboard → **Profile** page.
 2. In the **Database** section, click **Import Backup**, pick the `.json`
-   file from Step 1, and confirm with your (new) Pro dashboard password.
+   file from Step 1, and confirm with your (new) 9Router Ultimate dashboard password.
 3. Wait for "Database imported successfully", then reload the dashboard.
 
 Importing is safe by design:
 
-- Pro takes a **snapshot of its own database before every import**
+- 9Router Ultimate takes a **snapshot of its own database before every import**
   (`data/db/backups/pre-import-*`, newest 3 kept), so a wrong file is never
   unrecoverable.
-- Pro backups carry a format marker; importing a backup from the original —
-  or from an older Pro — **never wipes Pro-only data** (prompt injections,
+- 9Router Ultimate backups carry a format marker; importing a backup from the original —
+  or from an older 9Router Ultimate — **never wipes Ultimate-only data** (prompt injections,
   key quotas, key limits): sections the file doesn't contain are left as
   they are.
 
@@ -58,14 +58,14 @@ Importing is safe by design:
   existing API keys lists them.
 - Send one test chat through a combo you use daily.
 - **Endpoint** page: your API keys are listed with the same key values —
-  clients (Hermes, Claude Code, Cursor, …) keep working against Pro's base
+  clients (Hermes, Claude Code, Cursor, …) keep working against 9Router Ultimate's base
   URL with **no key changes**.
 
 ## What carries over — and what doesn't
 
-| Carries over (in the backup) | Starts fresh in Pro |
+| Carries over (in the backup) | Starts fresh in 9Router Ultimate |
 | --- | --- |
-| Provider connections & OAuth accounts | Prompt Injections (Pro-only feature) |
+| Provider connections & OAuth accounts | Prompt Injections (Ultimate-only feature) |
 | Custom providers / nodes | Per-key token quotas |
 | Combos & model aliases / custom models | Per-key rate limits (Key Limits) |
 | API keys (same values) | Usage history & statistics* |
@@ -76,34 +76,34 @@ Importing is safe by design:
 \* The backup format covers configuration, not historical usage rows, so
 usage counters and quota/limit windows count from migration day.
 
-Pro-only features have no source data in the original — after migrating,
+Ultimate-only features have no source data in the original — after migrating,
 set them up on the **Prompt Injection** page and per key on the **Endpoint**
 page.
 
 ## Cut over and roll back
 
-- **Cut over:** point your clients at Pro's base URL (same key), then stop
+- **Cut over:** point your clients at 9Router Ultimate's base URL (same key), then stop
   the original. Keep the original's folder and your backup `.json` for a
   few days.
 - **Roll back:** your original install was never modified — just start it
-  again and point clients back. Nothing to undo on the Pro side.
+  again and point clients back. Nothing to undo on the 9Router Ultimate side.
 
 ## FAQ
 
-**Does Pro auto-migrate my existing install in place?**
+**Does 9Router Ultimate auto-migrate my existing install in place?**
 No — deliberately. Export/import is explicit, reversible, and works across
 machines and across install styles (source ↔ Docker). It takes about two
 minutes.
 
 **Do my client API keys change?**
 No. Keys import with the same values; only the base URL changes if you run
-Pro somewhere else.
+9Router Ultimate somewhere else.
 
 **Can I migrate from a fork of 9Router?**
 If the fork exports the standard 9Router backup file, yes — import it the
-same way. Pro-only sections simply start empty, and nothing in the file can
+same way. Ultimate-only sections simply start empty, and nothing in the file can
 wipe them later.
 
 **What if the import fails or the file looks wrong?**
-Pro snapshots its database before importing, and the original install is
+9Router Ultimate snapshots its database before importing, and the original install is
 untouched. Fix the file (re-export from the original) and import again.

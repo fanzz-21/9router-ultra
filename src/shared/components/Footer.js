@@ -46,13 +46,9 @@ export default function Footer() {
               The unified interface for modern AI infrastructure. Secure, observable, and scalable.
             </p>
             <p className="text-sm text-text-muted mb-6">
-              Pro edition by <span className="text-text-main font-medium">Gienetic</span> ·{" "}
-              <a href="https://github.com/giienew" target="_blank" rel="noreferrer" className="underline hover:text-primary transition-colors">
+              {APP_CONFIG.name} ·{" "}
+              <a href="https://github.com/fanzz-21/9router-ultra" target="_blank" rel="noreferrer" className="underline hover:text-primary transition-colors">
                 GitHub
-              </a>{" "}
-              ·{" "}
-              <a href="https://t.me/gienetic" target="_blank" rel="noreferrer" className="underline hover:text-primary transition-colors">
-                Telegram
               </a>
             </p>
             {/* Social links */}
@@ -124,7 +120,7 @@ export default function Footer() {
         {/* Bottom */}
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-text-muted">
-            © {new Date().getFullYear()} {APP_CONFIG.name} by Gienetic. Built on 9Router by decolua (MIT).
+            © {new Date().getFullYear()} {APP_CONFIG.name}. Built on 9Router by decolua (MIT).
           </p>
           <div className="flex gap-6 text-sm text-text-muted">
             <Link href="#" className="hover:text-primary transition-colors">

@@ -116,7 +116,7 @@ export async function getProviderConnections(filter = {}) {
   return list;
 }
 
-// 9Router Pro (opt26): quota page only — fetch usage-eligible connections
+// 9Router Ultimate (opt26): quota page only — fetch usage-eligible connections
 // straight from SQLite instead of loading + decrypting the whole table.
 // Mirrors the providers/client route's eligibility rule exactly: the provider
 // must support usage AND (oauth auth OR apikey-whitelisted provider).
@@ -142,7 +142,7 @@ export async function getProviderConnectionById(id) {
   return rowToConn(row);
 }
 
-// 9Router Pro: dashboard list-page stats, aggregated server-side so the
+// 9Router Ultimate: dashboard list-page stats, aggregated server-side so the
 // providers page no longer downloads every connection (18k+ rows ≈ 7MB).
 // Mirrors the page's own rules: "unavailable" counts as connected unless a
 // modelLock_* is still in the future (cooldown), in which case it's an error.
@@ -188,7 +188,7 @@ export async function getProviderConnectionStats() {
   return stats;
 }
 
-// 9Router Pro: server-side pagination + search for connection lists, so a
+// 9Router Ultimate: server-side pagination + search for connection lists, so a
 // provider with tens of thousands of keys loads one page at a time.
 export async function getProviderConnectionsPage({ provider, page = 1, pageSize = 100, search = "" } = {}) {
   const db = await getAdapter();
@@ -208,7 +208,7 @@ export async function getProviderConnectionsPage({ provider, page = 1, pageSize 
   return { connections: rows.map(rowToConn), total, page: safePage, pageSize: safeSize };
 }
 
-// 9Router Pro: one UPDATE for a whole provider instead of one PUT per
+// 9Router Ultimate: one UPDATE for a whole provider instead of one PUT per
 // connection when toggling a provider on/off from the list page.
 export async function bulkSetConnectionsActive(provider, authTypes, isActive) {
   if (!provider || !Array.isArray(authTypes) || !authTypes.length) return 0;

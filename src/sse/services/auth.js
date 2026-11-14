@@ -15,7 +15,7 @@ import * as log from "../utils/logger.js";
 // same account. Balanced picks stay lock-free (see below) and never queue
 // behind another request's selection.
 
-// Sticky-random current key per provider+model (9Router Pro): the key a
+// Sticky-random current key per provider+model (9Router Ultimate): the key a
 // successful request sticks to until it locks. In-memory only — a restart
 // cold-starts to a fresh random pick. The entry is dropped the moment its
 // key locks, so the next pick re-rolls instead of re-sticking to a stale
@@ -42,7 +42,7 @@ let stickySelectionMutex = Promise.resolve();
 const lastUsedDirty = new Map();
 let lastUsedFlushTimer = null;
 
-// Auto-quarantine (9Router Pro): a credential that fails auth repeatedly
+// Auto-quarantine (9Router Ultimate): a credential that fails auth repeatedly
 // is dead, not unlucky — per-model locks alone would retry it forever
 // across models. After QUARANTINE_AFTER_AUTH_FAILURES consecutive 401/403s
 // the account is deactivated with a dashboard-visible reason (lastError)
@@ -263,7 +263,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         });
       }
       let earliest = expiries.sort()[0] || null;
-      // Small-fleet rescue (9Router Pro): every connection is locked, but
+      // Small-fleet rescue (9Router Ultimate): every connection is locked, but
       // the fleet is tiny and the earliest lock lifts soon — wait for it
       // instead of failing the request. A lock is a heuristic (a quota
       // window, a transient error); for a 1–8 account provider one window
@@ -390,7 +390,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         });
       }
     } else if (strategy === "balanced") {
-      // Balanced, lock-free (9Router Pro): clean accounts first — an
+      // Balanced, lock-free (9Router Ultimate): clean accounts first — an
       // account that failed recently and has not proven itself since
       // only serves when no clean account is available. Within the tier,
       // the pick is a random choice among the least-recently-used window,
@@ -533,7 +533,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     backoffLevel: newBackoffLevel ?? backoffLevel
   };
   // The "unavailable" label outlives the lock itself, so only a substantial
-  // cooldown earns it (9Router Pro). A seconds-long transient lock must not
+  // cooldown earns it (9Router Ultimate). A seconds-long transient lock must not
   // brand a healthy account as dead on the dashboard.
   if (shouldStampUnavailable(cooldownMs, UNAVAILABLE_LABEL_MIN_COOLDOWN_MS)) {
     update.testStatus = "unavailable";
@@ -573,7 +573,7 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   log.warn("AUTH", `${connName} · ${status}${statusWords ? ` ${statusWords}` : ""} · ${model || "all models"} locked ${log.fmtDuration?.(cooldownMs) || `${Math.round(cooldownMs / 1000)}s`}`);
 
   if (provider && status && reason) {
-    // Plain words only (9Router Pro): the raw reason is an upstream JSON
+    // Plain words only (9Router Ultimate): the raw reason is an upstream JSON
     // body — the operator needs its one human sentence, not the dump.
     console.error(`❌ ${provider} [${status}]: ${log.plainErrorDetail?.(reason) || statusWords || "error"}`);
   }

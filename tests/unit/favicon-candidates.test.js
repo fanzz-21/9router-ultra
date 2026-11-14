@@ -1,4 +1,4 @@
-// Favicon auto-detection (9Router Pro): candidates come from the
+// Favicon auto-detection (9Router Ultimate): candidates come from the
 // provider's API base URL — origin first, parent domain second;
 // local/IP/invalid inputs get none.
 import { describe, expect, it } from "vitest";

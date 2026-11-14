@@ -326,7 +326,7 @@ export default function BasicChatPageClient() {
           group.models.push(...staticModels);
         }
 
-        // 9Router Pro: fetch live models once per provider, not once per
+        // 9Router Ultimate: fetch live models once per provider, not once per
         // connection — with thousands of keys per provider the old fan-out
         // fired thousands of requests; group models are deduped anyway.
         const seenProviders = new Set();

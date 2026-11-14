@@ -1,4 +1,4 @@
-// 9Router Pro — built-in prompt templates (public defaults).
+// 9Router Ultimate — built-in prompt templates (public defaults).
 // Library-only content: a template never runs by itself. Users pick a
 // template and apply it to their own target (variant, global, or key)
 // themselves. Built-ins are read-only in the UI (Copy/apply only) and

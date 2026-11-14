@@ -1,4 +1,4 @@
-// Key Limits (9Router Pro) — per-API-key rate limits for reselling:
+// Key Limits (9Router Ultimate) — per-API-key rate limits for reselling:
 // requests per minute/hour/day, tokens per minute and max concurrent
 // requests. Config lives in KV; RPM/RPH/RPD/concurrency are enforced by the
 // in-memory limiter (src/lib/keyRateLimiter.js), TPM by a soft DB pre-check

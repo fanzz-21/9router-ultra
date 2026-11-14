@@ -13,7 +13,7 @@ const path = require("path");
 const HELP = `
 Usage: 9router doctor [--port <n>] [--json]
 
-Diagnose this machine's 9Router Pro setup. Read-only, no writes, no keys printed.
+Diagnose this machine's 9Router Ultimate setup. Read-only, no writes, no keys printed.
 
   9router doctor               # defaults: port from PORT env or 3000
   9router doctor --port 20127  # check a different server port
@@ -82,7 +82,7 @@ async function run(argv) {
   if (opts.json) {
     console.log(JSON.stringify({ port: opts.port, checks: rows }, null, 2));
   } else {
-    console.log(`\n9Router Pro doctor — port ${opts.port}\n`);
+    console.log(`\n9Router Ultimate doctor — port ${opts.port}\n`);
     for (const r of rows) {
       const mark = r.status === "ok" ? "✅" : r.status === "fail" ? "❌" : r.status === "warn" ? "⚠️" : "ℹ️";
       console.log(`${mark} ${r.name}: ${r.detail}`);

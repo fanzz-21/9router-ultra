@@ -1,22 +1,22 @@
 <div align="center">
-  <img src="./images/pro-dashboard.png" alt="9Router Pro — Monitoring Dashboard" width="800"/>
+  <img src="./images/pro-dashboard.png" alt="9Router Ultimate — Monitoring Dashboard" width="800"/>
 
-  # 9Router Pro
+  # 9Router Ultimate
 
-  **A Pro edition of 9Router with Prompt Injection: one injection per target — global, per API key, per model — as a system prompt or a scripted chat.**
+  **An enhanced edition of 9Router with Prompt Injection: one injection per target — global, per API key, per model — as a system prompt or a scripted chat.**
 
-  By **Gienetic** — [GitHub](https://github.com/giienew) · [Telegram](https://t.me/gienetic)
+  [GitHub](https://github.com/fanzz-21/9router-ultra)
 
-  [![Stars](https://img.shields.io/github/stars/giienew/9router-pro?style=social)](https://github.com/giienew/9router-pro/stargazers)
-  [![Forks](https://img.shields.io/github/forks/giienew/9router-pro?style=social)](https://github.com/giienew/9router-pro/network/members)
-  [![License](https://img.shields.io/github/license/giienew/9router-pro)](./LICENSE)
-  [![Latest Pro release](https://img.shields.io/github/v/release/giienew/9router-pro?label=release)](https://github.com/giienew/9router-pro/releases)
+  [![Stars](https://img.shields.io/github/stars/fanzz-21/9router-ultra?style=social)](https://github.com/fanzz-21/9router-ultra/stargazers)
+  [![Forks](https://img.shields.io/github/forks/fanzz-21/9router-ultra?style=social)](https://github.com/fanzz-21/9router-ultra/network/members)
+  [![License](https://img.shields.io/github/license/fanzz-21/9router-ultra)](./LICENSE)
+  [![Latest Pro release](https://img.shields.io/github/v/release/fanzz-21/9router-ultra?label=release)](https://github.com/fanzz-21/9router-ultra/releases)
 
-  Based on [9Router](https://github.com/decolua/9router) by decolua (MIT). Everything below the Pro section is the original project documentation.
+  Based on [9Router](https://github.com/decolua/9router) by decolua (MIT). Everything below the Ultimate section is the original project documentation.
 
 </div>
 
-## ✨ What's Pro
+## ✨ What makes it different
 
 - **Prompt Injection** (dashboard page) — one injection per target, zero learning curve:
   - **Global** — injected into every chat request
@@ -24,7 +24,7 @@
   - **Per model** — one per model, matched by the name clients call (combo, alias, or `provider/model`)
 - **Two modes per injection** — a *single system prompt* (prepend or append), or a *chat script*: user/bot turns, as long as you like, inserted as a conversation that already happened. Fake history primes far harder than a system prompt alone.
 - **Stacking** — a request receives at most three injections, ordered global → user → model. Injection happens after format translation through the router's own wire-aware injector (OpenAI, Claude, Gemini, Responses); idempotent on retries; fails open (a broken injection never breaks a chat).
-- **Per-key token quotas** — a token budget per API key (24h / 7d / 30d) with live usage on the Endpoint page. (Upstream removed this feature; Pro brings it back.)
+- **Per-key token quotas** — a token budget per API key (24h / 7d / 30d) with live usage on the Endpoint page. (Upstream removed this feature; 9Router Ultimate brings it back.)
 - **Key Limits for reselling** — per-API-key rate limits, all configurable per key on the Endpoint page: requests/minute, tokens/minute, requests/hour, requests/day and max concurrent requests, enforced with HTTP 429 + `Retry-After`. Shape every key to the plan you sold.
 - **Providers, organized** — custom (OpenAI/Anthropic-compatible) providers get their own **Provider Custom** section, an **All Connection Providers** shelf, and a **Test All** button in *every* section — custom providers included. Server-side search & pagination keeps tens of thousands of connections snappy, bulk add shows live progress, and each custom provider's icon is auto-detected from its endpoint's favicon.
 - **Proxy Pools that maintain themselves** — a server-side **health check across every pool** with one-click cleanup of the dead ones. Per-provider proxy rotation (random / round-robin) can be pinned to a **hand-picked subset of pools**, chosen from a compact collapsible picker that folds away when you're done.
@@ -76,7 +76,7 @@ Key Limits cap **how fast** a key may call, so one buyer cannot drain your pool 
 | Requests / day | Chat requests in the last 24 hours |
 | Max concurrent | Requests running at the same time |
 
-A key that crosses a limit gets **HTTP 429 with a `Retry-After` header** and a message naming the limit it hit — the request never reaches your upstreams. The Endpoint page shows each key's live usage (requests this minute, requests in flight). Request windows are tracked in memory, so they reset when Pro restarts; the token quota above is the durable budget.
+A key that crosses a limit gets **HTTP 429 with a `Retry-After` header** and a message naming the limit it hit — the request never reaches your upstreams. The Endpoint page shows each key's live usage (requests this minute, requests in flight). Request windows are tracked in memory, so they reset when 9Router Ultimate restarts; the token quota above is the durable budget.
 
 **Typical seller setup:** give each plan its own key — e.g. a basic plan with 10 requests/min, 500 requests/day, max 2 concurrent, plus a token quota sized to the plan — and let buyers upgrade by editing numbers, not by reissuing keys.
 
@@ -107,32 +107,32 @@ A key that crosses a limit gets **HTTP 429 with a `Retry-After` header** and a m
   <br/><em>Chat script mode — scripted user/bot turns injected as a conversation that already happened.</em>
 </p>
 
-## 💎 Why Pro?
+## 💎 Why 9Router Ultimate?
 
-The original 9Router is a great router — Pro is what it becomes when you actually run it as your daily gateway:
+The original 9Router is a great router — 9Router Ultimate is what it becomes when you actually run it as your daily gateway:
 
-- **Prompt Injection** — the original has *no* custom system prompts at all. Pro gives every target one injection — **global**, **per API key**, and **per model** — each either a system prompt (prepend or append) or a scripted chat primed as fake history, injected wire-aware for OpenAI / Claude / Gemini / Responses bodies.
-- **Per-key token quotas** — upstream *removed* this feature. Pro brings it back: a token budget per API key (24h / 7d / 30d) with live usage and 429 enforcement.
-- **An identity** — a dark neumorphism dashboard with floating glass cards, pill everything, spectrum charts and a custom colour picker (any hue, dark to light), plus Pro branding throughout.
+- **Prompt Injection** — the original has *no* custom system prompts at all. 9Router Ultimate gives every target one injection — **global**, **per API key**, and **per model** — each either a system prompt (prepend or append) or a scripted chat primed as fake history, injected wire-aware for OpenAI / Claude / Gemini / Responses bodies.
+- **Per-key token quotas** — upstream *removed* this feature. 9Router Ultimate brings it back: a token budget per API key (24h / 7d / 30d) with live usage and 429 enforcement.
+- **An identity** — a dark neumorphism dashboard with floating glass cards, pill everything, spectrum charts and a custom colour picker (any hue, dark to light), plus a custom identity throughout.
 - **Fleet care built in** — Balanced health-tiered fallback, the Anti-Flaky Guard, server-side proxy-pool health checks and per-provider rotation subsets keep a big key fleet healthy without babysitting.
 - **An optimized hot path** — injection resolution is snapshot-cached and system prompts run as a single grouped pass per position: identical output, less work per request.
-- **Updates that follow Pro** — release checks and the install command point at this repo's GitHub releases, not upstream's npm package.
-- **Tested** — the Pro features ship with unit tests (injector + resolver), all passing.
+- **Updates that follow 9Router Ultimate** — release checks and the install command point at this repo's GitHub releases, not upstream's npm package.
+- **Tested** — the Ultimate features ship with unit tests (injector + resolver), all passing.
 - **Made to be an agent's endpoint** — one base URL for Hermes-style setups, model switching by name, streaming + tool-call passthrough.
 
 ## 🤖 Built for agents — Hermes & friends
 
-Pro is designed to sit in front of an AI agent (Hermes-style setups) as its single endpoint:
+9Router Ultimate is designed to sit in front of an AI agent (Hermes-style setups) as its single endpoint:
 
 - **One base URL** — point the agent at `https://your-host/v1` with any client key; every combo and model is callable by name and listed in `/v1/models`, so model-switching menus just work.
 - **Streaming + tool calls pass through** — verified end-to-end with agent-style requests.
-- **The persona lives in the router, not the client** — injections are applied by Pro, so the agent keeps its behavior no matter which model answers. Switch models mid-flight; the injection follows.
+- **The persona lives in the router, not the client** — injections are applied by 9Router Ultimate, so the agent keeps its behavior no matter which model answers. Switch models mid-flight; the injection follows.
 - **Your own `*_un` lineup** — this is how the author's setup runs: six models, each with a permanent injection of its own (11K–102K characters), behind one endpoint. No client-side prompt juggling, no re-pasting per app.
 - **Hand out keys safely** — per-key injections (a different persona per agent) plus per-key token quotas.
 
-## ⚖️ Pro vs Original vs Other Forks
+## ⚖️ 9Router Ultimate vs Original vs Other Forks
 
-| | 9Router (original) | Typical forks | **9Router Pro** |
+| | 9Router (original) | Typical forks | **9Router Ultimate** |
 |---|---|---|---|
 | Base stack | Next 16 / React 19 | often older (Next 14) | Next 16 / React 19 (upstream) |
 | Custom system prompts | ❌ (fixed Caveman/Ponytail only) | per-model fields | ✅ Prompt Injection: global + per-user + per-model, prompt or chat script |
@@ -149,18 +149,18 @@ Pro is designed to sit in front of an AI agent (Hermes-style setups) as its sing
 | `/v1/models` | ✅ healthy | ⚠️ had a 500 bug | ✅ healthy (upstream base) |
 | Extra services (Prisma/Redis) | none | sometimes required | none |
 
-## 🚀 Quick Start (Pro)
+## 🚀 Quick Start (9Router Ultimate)
 
 ```bash
-npm install -g 9router-pro
-9router-pro        # dashboard on http://localhost:20127
+npm install -g 9router-ultimate
+9router-ultimate        # dashboard on http://localhost:20127
 ```
 
 Then open the dashboard and log in. On a fresh install with no saved password, sign in with `INITIAL_PASSWORD` if you set one, otherwise the fallback `9routerpro`. From a non-local address, the fallback password alone is refused with a 403 until you change the password from the local machine or set `INITIAL_PASSWORD` — that is deliberate, not a bug.
 
 Then add a provider, and visit **Prompt Injection** to set up your injections.
 
-> Other install methods: run from source (`git clone https://github.com/giienew/9router-pro.git`, `npm install`, `npm run build`, `npm run start`) or with Docker — see the original documentation below for the full guide.
+> Other install methods: run from source (`git clone https://github.com/fanzz-21/9router-ultra.git`, `npm install`, `npm run build`, `npm run start`) or with Docker — see the original documentation below for the full guide.
 
 > Already running the original 9Router? Keep your providers, combos and keys — follow the [migration guide](./MIGRATION.md) (about two minutes, via backup export/import).
 
@@ -243,8 +243,8 @@ Result: Never stop coding, minimal cost + 20-40% token savings via RTK
 **1. Install globally:**
 
 ```bash
-npm install -g 9router-pro
-9router-pro
+npm install -g 9router-ultimate
+9router-ultimate
 ```
 
 🎉 Dashboard opens at `http://localhost:20127`
@@ -1416,8 +1416,8 @@ Model: cc/claude-opus-4-7
 
 ```bash
 # Clone and install
-git clone https://github.com/giienew/9router-pro.git
-cd 9router-pro
+git clone https://github.com/fanzz-21/9router-ultra.git
+cd 9router-ultra
 npm install
 npm run build
 
@@ -1466,8 +1466,8 @@ docker run -d \
 **Build from source (dev):**
 
 ```bash
-git clone https://github.com/giienew/9router-pro.git
-cd 9router-pro
+git clone https://github.com/fanzz-21/9router-ultra.git
+cd 9router-ultra
 docker build -t 9router .
 docker run -d --name 9router -p 20127:20127 \
   -v "$HOME/.9router:/app/data" -e DATA_DIR=/app/data 9router
@@ -1686,8 +1686,8 @@ Authorization: Bearer your-api-key
 
 ## 📧 Support
 
-- **GitHub**: [github.com/giienew/9router-pro](https://github.com/giienew/9router-pro)
-- **Issues**: [github.com/giienew/9router-pro/issues](https://github.com/giienew/9router-pro/issues)
+- **GitHub**: [github.com/fanzz-21/9router-ultra](https://github.com/fanzz-21/9router-ultra)
+- **Issues**: [github.com/fanzz-21/9router-ultra/issues](https://github.com/fanzz-21/9router-ultra/issues)
 
 ---
 

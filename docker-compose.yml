@@ -1,7 +1,8 @@
 services:
   9router:
-    image: decolua/9router:latest
-    container_name: 9router
+    build: .
+    image: 9router-ultimate:latest
+    container_name: 9router-ultimate
     restart: always
     ports:
       - "20127:20127"

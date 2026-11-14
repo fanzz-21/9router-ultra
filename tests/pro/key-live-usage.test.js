@@ -1,4 +1,4 @@
-// 9Router Pro — key live usage: GET /api/keys/[id] returns the same live
+// 9Router Ultimate — key live usage: GET /api/keys/[id] returns the same live
 // limitsUsage snapshot PUT does, so the dashboard "Live:" line can refresh
 // while a key's panel is open instead of freezing at page-load values.
 // Run: npx vitest run pro/key-live-usage.test.js

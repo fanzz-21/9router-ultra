@@ -1,4 +1,4 @@
-// 9Router Pro — backup summary + retention helpers (pure).
+// 9Router Ultimate — backup summary + retention helpers (pure).
 import {
   payloadSections,
   sanitizeSections,

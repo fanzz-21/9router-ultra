@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { THEME_CONFIG } from "@/shared/constants/config";
 
-// 9Router Pro is dark-only since the neumorphism restyle (owner order
+// 9Router Ultimate is dark-only since the neumorphism restyle (owner order
 // 2026-11-02): one default theme, no light/dark toggle, no presets.
 // The store API stays (theme/setTheme/toggleTheme/initTheme) so existing
 // callers keep working — every path lands on dark.

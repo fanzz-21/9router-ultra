@@ -1,7 +1,7 @@
 import { getApiKeyByKey, getInjectKeyModelPrompts, getInjectModelPrompts } from "@/lib/localDb";
 
 /**
- * Resolve a combo's effective strategy (9Router Pro pair rotation).
+ * Resolve a combo's effective strategy (9Router Ultimate pair rotation).
  *
  * Precedence: the combo's own configured strategy, then the global
  * combo strategy, then "auto". "auto" is the untouched default: a pair

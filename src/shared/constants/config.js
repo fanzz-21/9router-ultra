@@ -2,17 +2,17 @@ import pkg from "../../../package.json" with { type: "json" };
 
 // App configuration
 export const APP_CONFIG = {
-  name: "9Router Pro",
-  description: "AI Infrastructure Management — by Gienetic",
+  name: "9Router Ultimate",
+  description: "AI Infrastructure Management",
   version: pkg.version,
 };
 
 // GitHub configuration
 export const GITHUB_CONFIG = {
-  // 9Router Pro — changelog + releases live in the Pro repo
-  changelogUrl: "https://raw.githubusercontent.com/giienew/9router-pro/refs/heads/master/CHANGELOG-PRO.md",
-  repoUrl: "https://github.com/giienew/9router-pro",
-  donateUrl: "https://raw.githubusercontent.com/giienew/9router-pro/refs/heads/master/donate.json",
+  // 9Router Ultimate — changelog + releases live in the project repo
+  changelogUrl: "https://raw.githubusercontent.com/fanzz-21/9router-ultra/refs/heads/master/CHANGELOG-PRO.md",
+  repoUrl: "https://github.com/fanzz-21/9router-ultra",
+  donateUrl: "https://raw.githubusercontent.com/fanzz-21/9router-ultra/refs/heads/master/donate.json",
 };
 
 // Updater configuration
@@ -20,9 +20,9 @@ export const GITHUB_CONFIG = {
 // master: master still carries the previous pro.N, so a GitHub install lands users on
 // the old version while the panel title promises the new one (pro.18 complaint).
 export const UPDATER_CONFIG = {
-  npmPackageName: "9router-pro",
-  installCmd: "npm i -g 9router-pro",
-  installCmdLatest: "npm i -g 9router-pro --prefer-online",
+  npmPackageName: "9router-ultimate",
+  installCmd: "npm i -g 9router-ultimate",
+  installCmdLatest: "npm i -g 9router-ultimate --prefer-online",
   shutdownCountdownSec: 3,
   exitDelayMs: 500,
   statusPort: 20129,

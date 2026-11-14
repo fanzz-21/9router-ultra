@@ -1,4 +1,4 @@
-// Prompt Injection usage stats (9Router Pro) — counts which injections
+// Prompt Injection usage stats (9Router Ultimate) — counts which injections
 // actually fire, so a variant's card can show whether its prompt lives
 // or is dead. Mirrors tokenSaverStatsRepo: buffered in memory, flushed
 // in batches, pruned on read, best-effort throughout — recording must

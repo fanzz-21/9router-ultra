@@ -97,7 +97,7 @@ export function buildRequestDetail(base, overrides = {}) {
   };
 }
 
-// Build the "done" summary in plain words (9Router Pro): total time,
+// Build the "done" summary in plain words (9Router Ultimate): total time,
 // time to first token, token counts with thousands separators, cache hits.
 export function formatDoneLine({ usage, latency }) {
   const u = usage || {};

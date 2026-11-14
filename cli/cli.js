@@ -490,7 +490,7 @@ function resolveServerEntry() {
 const serverEntry = resolveServerEntry();
 if (!serverEntry) {
   console.error("Error: Standalone build not found.");
-  console.error("Reinstall 9router-pro (npm i -g 9router-pro) or build the CLI bundle first (npm run build inside cli/).");
+  console.error("Reinstall 9router-ultimate (npm i -g 9router-ultimate) or build the CLI bundle first (npm run build inside cli/).");
   process.exit(1);
 }
 const standaloneDir = serverEntry.dir;
@@ -851,7 +851,7 @@ function startServer(updatePromise) {
       } else {
         console.error("   (No server output was captured; rerun with --log to see it.)");
       }
-      console.error(`   Diagnose it with: 9router-pro doctor --port ${port}`);
+      console.error(`   Diagnose it with: 9router-ultimate doctor --port ${port}`);
       console.error(`   Then free the port if something stale holds it:`);
       portFreeHintLines(port).forEach((line) => console.error(line));
       isShuttingDown = true;

@@ -107,7 +107,7 @@ export function getNameIconSrc(alt) {
   return `/providers/${name}.png`;
 }
 
-// Favicon auto-detection for custom providers (9Router Pro): candidate
+// Favicon auto-detection for custom providers (9Router Ultimate): candidate
 // icon URLs derived from a provider's API base URL — the high-res
 // apple-touch-icon first, then favicon.ico; origin first, then the
 // parent domain (e.g. api.gonka-api.org serves no icon while

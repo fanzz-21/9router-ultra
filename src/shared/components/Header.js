@@ -215,7 +215,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   const [loginMethod, setLoginMethod] = useState("");
   const [donateOpen, setDonateOpen] = useState(false);
 
-  // 9Router Pro: personal display name where the theme/accent icon buttons
+  // 9Router Ultimate: personal display name where the theme/accent icon buttons
   // used to sit (those moved into the header menu). Accent-colored text in a
   // fixed handwriting style, click to edit the name. Persisted server-side
   // in settings (profileName) so it follows the user across devices.

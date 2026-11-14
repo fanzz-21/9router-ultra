@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { compressMessages } from "open-sse/rtk/index.js";
 
-// POST /api/token-saver/test { text } — Test Bench (9Router Pro): run
+// POST /api/token-saver/test { text } — Test Bench (9Router Ultimate): run
 // the exact RTK pipeline a chat request would hit, on one pasted tool
 // output, and report what it would save. No upstream is called.
 const MAX_TEXT = 2 * 1024 * 1024;

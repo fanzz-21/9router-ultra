@@ -1,4 +1,4 @@
-// Response cache (9Router Pro): exact replays for non-streaming chat
+// Response cache (9Router Ultimate): exact replays for non-streaming chat
 // completions. Scope is deliberately narrow — tool calls are never replayed
 // (the client would re-act on stale tool calls), and streaming responses
 // pass through untouched. The key covers the WHOLE request body except

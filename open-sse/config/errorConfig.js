@@ -41,7 +41,7 @@ export const TRANSIENT_COOLDOWN_MS = 30 * 1000;
 // Hard cap for provider-reported rate limit cooldown (e.g. codex resets_at can be 5-6h)
 export const MAX_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
 
-// Balanced selection (9Router Pro): how many least-recently-used candidates
+// Balanced selection (9Router Ultimate): how many least-recently-used candidates
 // the picker randomizes over. Big enough to smooth bursts, small enough to
 // keep the fleet's rest gradient steep.
 export const BALANCED_WINDOW_SIZE = 32;
@@ -74,7 +74,7 @@ export const UNAVAILABLE_LABEL_MIN_COOLDOWN_MS = 60 * 1000;
 // on their own instead of shrinking forever.
 export const SUSPECT_PROBATION_MS = 60 * 60 * 1000;
 
-// Provider breaker (P3-27, 9Router Pro): the third resilience layer. When a
+// Provider breaker (P3-27, 9Router Ultimate): the third resilience layer. When a
 // provider's fleet fails broadly, the whole provider stops receiving
 // traffic for a minute instead of every request hammering it, then re-opens
 // for a short probing window. Distinct from connection cooldown (one

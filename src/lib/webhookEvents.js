@@ -1,4 +1,4 @@
-// Structured webhook events (9Router Pro, P3-30 webhooks).
+// Structured webhook events (9Router Ultimate, P3-30 webhooks).
 // Separate from the generic notification webhook in notify.js (which posts
 // a plain-text alert for silent jobs): these are typed JSON events a
 // receiver can route on — `usage`, `quota`, and `error`.

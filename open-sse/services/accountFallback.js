@@ -217,7 +217,7 @@ export function filterAvailableAccounts(accounts, excludeId = null) {
 }
 
 /**
- * Health tier of a connection for balanced selection (9Router Pro).
+ * Health tier of a connection for balanced selection (9Router Ultimate).
  * 0 = clean (no recent failure), 1 = suspect (failed recently and has not
  * proven itself since). A suspect returns to clean once its last failure
  * ages past the probation window, even without traffic, so fleets heal
@@ -239,7 +239,7 @@ export function connectionHealthTier(connection, now = Date.now(), probationMs =
 }
 
 /**
- * In-memory last-used overlay for lock-free balanced picks (9Router Pro).
+ * In-memory last-used overlay for lock-free balanced picks (9Router Ultimate).
  * The DB stamp is flushed lazily (see scheduleLastUsedFlush in auth.js),
  * so the overlay is what concurrent picks read: a key stamped here sorts
  * to the back of the window immediately, and two requests racing in this
@@ -275,7 +275,7 @@ function lruKey(connection, overlay) {
 }
 
 /**
- * Pick one connection from the least-recently-used window (9Router Pro).
+ * Pick one connection from the least-recently-used window (9Router Ultimate).
  * Same window semantics as before — never-used first (lowest priority
  * number first), then oldest use, uniform random choice among the first
  * `windowSize` candidates so bursts spread and no key becomes the
@@ -310,7 +310,7 @@ export function pickWindowedLru(connections, windowSize = 32, rng = Math.random,
 
 /**
  * Whether a cooldown is long enough to brand the connection "unavailable"
- * on the dashboard (9Router Pro). The lock itself always applies; only
+ * on the dashboard (9Router Ultimate). The lock itself always applies; only
  * the label is gated, because the label outlives short locks and a key
  * stamped dead over a 30-second blip misleads operators into thinking
  * the fleet is dying.

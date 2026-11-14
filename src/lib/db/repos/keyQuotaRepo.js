@@ -1,4 +1,4 @@
-// Key Quotas (9Router Pro) — per-API-key token budgets over a rolling
+// Key Quotas (9Router Ultimate) — per-API-key token budgets over a rolling
 // window. Upstream removed its quota implementation (revert 6ed8868); Pro
 // brings it back lean: config in KV, usage summed from usageHistory.
 //

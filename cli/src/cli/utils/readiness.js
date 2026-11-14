@@ -74,7 +74,7 @@ function serverNotReadyLines(port, { timeoutMs = DEFAULT_READY_TIMEOUT_MS, platf
     `❌ Server did not start on port ${port} within ${Math.round(timeoutMs / 1000)}s.`,
     "   The dashboard will not load (connection refused) — the router is NOT running.",
     "   Diagnose it with:",
-    `     9router-pro doctor --port ${port}`,
+    `     9router-ultimate doctor --port ${port}`,
     "   Then check the server log and free the port if something stale holds it:",
     ...portFreeHintLines(port, platform),
     "",

@@ -5,7 +5,7 @@ import { Card, Button, ConfirmModal } from "@/shared/components";
 import { CONSOLE_LOG_CONFIG } from "@/shared/constants/config";
 import { parseConsoleLine, isProviderCallLine } from "@/lib/logLineParse";
 
-// MatLog-style rows (9Router Pro): every line renders as time + level
+// MatLog-style rows (9Router Ultimate): every line renders as time + level
 // badge + short tag + one plain message, so the panel scans like a
 // logcat viewer instead of a wall of green terminal text. The badges
 // copy MatLog's own colors and shape: a solid bright square with a

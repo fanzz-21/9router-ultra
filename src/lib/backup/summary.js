@@ -1,4 +1,4 @@
-// 9Router Pro — pure helpers for backup payloads: shape check, content
+// 9Router Ultimate — pure helpers for backup payloads: shape check, content
 // summary (counts), and snapshot retention. No I/O, no imports — the
 // Settings UI numbers, the import preview and the snapshot index all
 // derive from these, and they are unit-tested directly.

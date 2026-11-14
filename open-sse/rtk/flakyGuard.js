@@ -1,4 +1,4 @@
-// Anti-Flaky Guard (9Router Pro) — pure response-quality checks.
+// Anti-Flaky Guard (9Router Ultimate) — pure response-quality checks.
 //
 // Some upstreams (notably large shared key pools) intermittently answer
 // HTTP 200 with an empty body text or a degenerate repetition loop

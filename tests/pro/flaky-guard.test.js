@@ -1,4 +1,4 @@
-// 9Router Pro — Anti-Flaky Guard tests: response classification + config.
+// 9Router Ultimate — Anti-Flaky Guard tests: response classification + config.
 // Run via the workspace harness (see token-saver.test.js header).
 import assert from "node:assert";
 import { detectFlakyResponse, isDegenerateText, resolveAntiFlakyConfig, inspectChatResponse, inspectChatResponseFull } from "../../open-sse/rtk/flakyGuard.js";

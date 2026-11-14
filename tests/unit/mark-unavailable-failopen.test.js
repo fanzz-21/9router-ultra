@@ -1,4 +1,4 @@
-// 9Router Pro — markAccountUnavailable fails open when the DB is unusable.
+// 9Router Ultimate — markAccountUnavailable fails open when the DB is unusable.
 // A locked/busy database on the hot path must degrade to in-memory state
 // (the lock is lost) while the request still falls back — never a 500
 // caused by bookkeeping. The DB file is a directory, so every adapter

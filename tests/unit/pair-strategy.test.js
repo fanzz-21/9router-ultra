@@ -1,4 +1,4 @@
-// Pair rotation (9Router Pro): a custom name with its own prompt
+// Pair rotation (9Router Ultimate): a custom name with its own prompt
 // injection backed by several models defaults to round-robin; any
 // explicit strategy (per-combo or global) wins; storage fails open.
 import { beforeEach, describe, expect, it, vi } from "vitest";

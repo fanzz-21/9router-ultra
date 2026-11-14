@@ -116,7 +116,7 @@ export function maskKey(key) {
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
 
-// Human duration for log lines: 731ms / 1.3s / 2m 05s (9Router Pro — logs
+// Human duration for log lines: 731ms / 1.3s / 2m 05s (9Router Ultimate — logs
 // are read by operators, not parsed by machines).
 export function fmtDuration(ms) {
   const n = Number(ms) || 0;

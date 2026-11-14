@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPromptInjectStats } from "@/lib/db/repos/promptInjectStatsRepo.js";
 
-// Prompt Injection usage stats (9Router Pro) — read-only. Written by
+// Prompt Injection usage stats (9Router Ultimate) — read-only. Written by
 // the chat hook in src/sse/handlers/chat.js, buffered like the Token
 // Saver stats; this route only reads (and prunes rows older than 90
 // days, the same retention the stats API itself enforces).

@@ -19,7 +19,7 @@ import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
 import { getTransform as getPxpipeTransform } from "@/lib/pxpipe/loader.js";
 import { appendPxpipeEvent } from "@/lib/pxpipe/events.js";
-import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
+import { errorResponse, unavailableResponse, maskHiddenError } from "open-sse/utils/error.js";
 import { upstreamResponseHeaders } from "open-sse/utils/upstreamHeaders.js";
 import { handleComboChat, detectRequiredCapabilities } from "open-sse/services/combo.js";
 import { augmentModelsWithCapacityAdapter, withCapacityAdapterStripping, getActiveAdapterStrategy } from "open-sse/services/capacityAdapter.js";
@@ -44,7 +44,26 @@ export async function handleChat(request, clientRawRequest = null) {
   // client on every response — success, error, or stream — via header.
   const requestId = requestIdFromRequest(request);
   const response = await withKeyAdmission(request, () => handleChatImpl(request, clientRawRequest, requestId), recheckKeyQuotaAfterCompletion);
-  return attachRequestId(response, requestId);
+  // Hide Raw Errors (experimental, Experiments page): when enabled, mask every
+  // error body (status >= 400) at this one boundary so no upstream provider
+  // message or stack reaches the API client, whichever branch produced it.
+  // Diagnostics stay server-side (logs, webhooks, request-detail records) — only
+  // the outgoing text is swapped. Success/stream (200) responses pass through.
+  const masked = await maskErrorIfHidden(response);
+  return attachRequestId(masked, requestId);
+}
+
+// Read the Hide Raw Errors toggle once and apply the masking boundary. The
+// settings read is cached (3s TTL) and failures fail open (unmasked) so the
+// toggle can never take down the error path.
+async function maskErrorIfHidden(response) {
+  if (!response || response.status < 400) return response;
+  try {
+    const settings = await getSettings();
+    return await maskHiddenError(response, Boolean(settings?.hideError));
+  } catch {
+    return response;
+  }
 }
 
 // Per-combo member pins live in comboDispatch.js (memberPinFor) so the
@@ -348,7 +367,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
   let lastError = null;
   let lastStatus = null;
   let lastHeaders = null;
-  // Anti-Flaky Guard (9Router Pro): retries spent on 200-but-garbage
+  // Anti-Flaky Guard (9Router Ultimate): retries spent on 200-but-garbage
   // responses, plus the last such response as a rescue if the pool runs
   // out before a clean answer shows up.
   let flakyAttempts = 0;
@@ -395,7 +414,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // Use shared chatCore
     const chatSettings = await getSettings();
     const providerThinking = (chatSettings.providerThinking || {})[provider] || null;
-    // Prompt Injection (9Router Pro): global → the API key's → the
+    // Prompt Injection (9Router Ultimate): global → the API key's → the
     // variant's (matched by the bare custom name the user requested) →
     // the model+key's (matched by resolved provider/model). A variant
     // pick suppresses the model scopes, so the raw model name is never
@@ -408,7 +427,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       resolvedModel: `${provider}/${model}`,
       bareModel: model,
     });
-    // Prompt Injection usage stats (9Router Pro): buffered, fail-open,
+    // Prompt Injection usage stats (9Router Ultimate): buffered, fail-open,
     // coordinate keys + scopes only — never prompt text. A lone
     // model-scope entry is ambiguous (plain model vs model+key), so only
     // then is the request key's model+key map read, once. The variant
@@ -437,7 +456,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // a variant) carries that variant's sampling params, overriding the
     // client's defaults for this request only. Prompt text untouched.
     const variantSampling = await resolveVariantSampling(injectModelName || requestedModel || modelStr).catch(() => null);
-    // Brief Mode (9Router Pro): per-scope terseness level, same context.
+    // Brief Mode (9Router Ultimate): per-scope terseness level, same context.
     const briefLevel = await resolveBriefLevel({
       apiKeyId: injectKeyRecord?.id || null,
       requestedModel: injectModelName || requestedModel || modelStr,
@@ -494,7 +513,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     });
 
     if (result.success) {
-      // Anti-Flaky Guard (9Router Pro): an HTTP 200 whose body is empty
+      // Anti-Flaky Guard (9Router Ultimate): an HTTP 200 whose body is empty
       // or a degenerate repetition loop is retried on another account
       // instead of reaching the client. Fail-open: retries are capped by
       // settings, the account is NOT marked unavailable (the upstream

@@ -1,7 +1,7 @@
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 
-// Smart member failover (9Router Pro): inside a combo, one member's lane
+// Smart member failover (9Router Ultimate): inside a combo, one member's lane
 // must not grind its whole account pool while the client waits. After this
 // many failed accounts for the same member in one request, the member gives
 // up and the combo moves to its next member at once.

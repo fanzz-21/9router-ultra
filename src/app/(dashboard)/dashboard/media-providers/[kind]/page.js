@@ -12,13 +12,13 @@ import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind } from "@/shared
 // webSearch/webFetch list pages do not exist: they 404 via notFound()
 // below (G17). The combined page is /dashboard/media-providers/web.
 
-// 9Router Pro: per-connection status math moved server-side (?summary=1).
+// 9Router Ultimate: per-connection status math moved server-side (?summary=1).
 
 function MediaProviderCard({ provider, kind, stats, isCustom, onToggle }) {
   const providerInfo = AI_PROVIDERS[provider.id];
   const isNoAuth = !!providerInfo?.noAuth;
 
-  // 9Router Pro: counts come from the server-side summary (?summary=1).
+  // 9Router Ultimate: counts come from the server-side summary (?summary=1).
   const { connected = 0, error = 0, total = 0, allDisabled = false } = stats || {};
 
   const handleToggleClick = (e) => {
@@ -124,7 +124,7 @@ export default function MediaProviderKindPage() {
 
   const allProviders = [...providers, ...customProviders];
 
-  // 9Router Pro: merge per-authType summary entries into one per provider.
+  // 9Router Ultimate: merge per-authType summary entries into one per provider.
   const statsFor = (providerId) => {
     const entries = Object.values(statsMap).filter((s) => s.provider === providerId);
     const merged = { total: 0, connected: 0, error: 0, allDisabled: false };
@@ -137,7 +137,7 @@ export default function MediaProviderKindPage() {
     return merged;
   };
 
-  // 9Router Pro: one bulk PATCH instead of one PUT per connection.
+  // 9Router Ultimate: one bulk PATCH instead of one PUT per connection.
   const handleToggleProvider = async (providerId, newActive) => {
     const authTypes = [...new Set(
       Object.values(statsMap).filter((s) => s.provider === providerId).map((s) => s.authType)

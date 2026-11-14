@@ -1,17 +1,17 @@
 {
-  "name": "9router-pro",
+  "name": "9router-ultimate",
   "version": "0.5.109-pro.26",
-  "description": "9Router Pro CLI - Start and manage the 9Router Pro server (Pro edition of 9Router, by Gienetic)",
+  "description": "9Router Ultimate CLI - Start and manage the 9Router Ultimate server (based on 9Router by decolua)",
   "bin": {
-    "9router-pro": "./cli.js"
+    "9router-ultimate": "./cli.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/giienew/9router-pro.git"
+    "url": "git+https://github.com/fanzz-21/9router-ultra.git"
   },
-  "homepage": "https://github.com/giienew/9router-pro#readme",
+  "homepage": "https://github.com/fanzz-21/9router-ultra#readme",
   "bugs": {
-    "url": "https://github.com/giienew/9router-pro/issues"
+    "url": "https://github.com/fanzz-21/9router-ultra/issues"
   },
   "files": [
     "cli.js",
@@ -46,7 +46,7 @@
   },
   "keywords": [
     "9router",
-    "9router-pro",
+    "9router-ultimate",
     "cli",
     "proxy",
     "ai",

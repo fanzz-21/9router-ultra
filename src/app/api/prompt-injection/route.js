@@ -13,7 +13,7 @@ import { getComboByName } from "@/lib/db/repos/combosRepo.js";
 import { selectPromptInjections } from "@/lib/db/repos/promptInjectRepo.js";
 import { getProviderNodes, resolveRoutableBacking } from "@/lib/db/repos/nodesRepo.js";
 
-// Prompt Injection (9Router Pro) — one injection per target coordinate:
+// Prompt Injection (9Router Ultimate) — one injection per target coordinate:
 // global, per API key, per variant (custom-named model), or per model+key
 // — plus a template library (named prompts, copied into injections; never
 // fired directly). Each entry is either a single system prompt or a

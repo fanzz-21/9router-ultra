@@ -1,4 +1,4 @@
-// Prompt Injection (9Router Pro) — prompts attached to a request by
+// Prompt Injection (9Router Ultimate) — prompts attached to a request by
 // TARGET COORDINATE: a scope (global / variant name) optionally narrowed
 // to one API key. Four combinations, one mental model — "who gets this
 // prompt?": everyone, one key, one variant, or one model for one key.

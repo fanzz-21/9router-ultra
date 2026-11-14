@@ -1,4 +1,4 @@
-// Latency statistics (9Router Pro): p50/p95 of TTFT and total time, from
+// Latency statistics (9Router Ultimate): p50/p95 of TTFT and total time, from
 // the request-details records the chat handlers already save (latency.ttft
 // / latency.total). No new instrumentation: rows only exist for requests
 // served after this feature lands, and periods with no rows report

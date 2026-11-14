@@ -1,4 +1,4 @@
-// Trust inbox + security log (R2/R3, 9Router Pro, original code).
+// Trust inbox + security log (R2/R3, 9Router Ultimate, original code).
 // Events live in the trustEvents / securityLog tables added to TABLES in
 // src/lib/db/schema.js; the additive auto-sync in migrate.js creates them
 // on boot, so no existing table is altered and no migration rewrites data.

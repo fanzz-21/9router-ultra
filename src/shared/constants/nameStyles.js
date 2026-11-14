@@ -1,11 +1,11 @@
-// 9Router Pro — display-name styles for the personal name in the header.
+// 9Router Ultimate — display-name styles for the personal name in the header.
 // The name is a small personal touch ("pemikat"): accent-colored text in
 // place of the old theme/accent icon buttons, click to customize.
 // All fonts are loaded once in app/layout.js via next/font (self-hosted)
 // and referenced through their CSS variables; caps/italic reuse Inter.
 // fontSize tweaks keep the display faces at a similar visual size —
 // script and pixel faces render much smaller/larger than plain sans.
-export const DEFAULT_NAME = "Gienetic";
+export const DEFAULT_NAME = "9Router Ultimate";
 
 export const NAME_FONTS = [
   // Sans
