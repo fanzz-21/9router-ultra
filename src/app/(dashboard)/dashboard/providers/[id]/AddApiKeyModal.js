@@ -37,6 +37,7 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
     priority: 1,
     proxyPoolId: NONE_PROXY_POOL_VALUE,
     ollamaHostUrl: "",
+    customUserAgent: "",
   });
   const [azureData, setAzureData] = useState({
     azureEndpoint: "",
@@ -77,6 +78,9 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
   }, []);
 
   const buildProviderSpecificData = () => {
+  // Custom User-Agent: per-connection upstream identity (empty = provider default).
+  if (formData.customUserAgent.trim()) return { customUserAgent: formData.customUserAgent.trim() };
+
     if (isOllamaLocal && formData.ollamaHostUrl.trim()) {
       return { baseUrl: formData.ollamaHostUrl.trim() };
     }
@@ -501,6 +505,14 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
             value={region}
             onChange={(e) => setRegion(e.target.value)}
             options={providerRegions.map((r) => ({ value: r.id, label: r.label }))}
+          />
+        )}
+        {(
+          <Input
+            label="Custom User-Agent (optional)"
+            value={formData.customUserAgent}
+            onChange={(e) => setFormData({ ...formData, customUserAgent: e.target.value })}
+            placeholder="e.g. hermes-agent/0.21.3 (leave blank for provider default)"
           />
         )}
         {isCompatible && (

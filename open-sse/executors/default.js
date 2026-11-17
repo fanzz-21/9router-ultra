@@ -200,6 +200,10 @@ export class DefaultExecutor extends BaseExecutor {
   buildHeaders(credentials, stream = true, url, model, body = null) {
     const rt = credentials?.runtimeTransport;
     const headers = { "Content-Type": "application/json", ...(rt ? rt.headers : this.config.headers) };
+    // Per-connection Custom User-Agent (dashboard: providerSpecificData.customUserAgent).
+    // Set = override; empty/absent = registry transport default. Mirrors chatgpt-web.
+    const customUa = credentials?.providerSpecificData?.customUserAgent;
+    if (typeof customUa === "string" && customUa.trim()) headers["User-Agent"] = customUa.trim();
     const desc = rt?.auth || AUTH_DESCRIPTORS[this.provider] || this.resolveAuthDescriptor();
     // Hooks run BEFORE auth so dynamic overlays can't clobber the token.
     for (const hook of desc.hooks || []) HEADER_HOOKS[hook]?.(headers, credentials);
