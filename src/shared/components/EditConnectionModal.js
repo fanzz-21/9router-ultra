@@ -14,6 +14,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
     name: "",
     priority: 1,
     apiKey: "",
+    customUserAgent: "",
   });
   const [azureData, setAzureData] = useState({
     azureEndpoint: "",
@@ -37,6 +38,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         name: connection.name || "",
         priority: connection.priority || 1,
         apiKey: "",
+        customUserAgent: connection.providerSpecificData?.customUserAgent || "",
       });
       // Load Azure-specific data if present
       if (connection.provider === "azure" && connection.providerSpecificData) {
@@ -179,6 +181,17 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         }
       }
       
+      // Custom User-Agent: per-connection upstream identity (empty = provider default)
+      const uaChanged = formData.customUserAgent.trim() !== (connection.providerSpecificData?.customUserAgent || "");
+      if (uaChanged) {
+        updates.providerSpecificData = {
+          ...((connection.providerSpecificData) || {}),
+          ...(formData.customUserAgent.trim()
+            ? { customUserAgent: formData.customUserAgent.trim() }
+            : { customUserAgent: null }),
+        };
+      }
+
       // Add Azure-specific data if this is an Azure connection
       if (isAzure) {
         updates.providerSpecificData = {
