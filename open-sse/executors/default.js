@@ -200,6 +200,24 @@ export class DefaultExecutor extends BaseExecutor {
   buildHeaders(credentials, stream = true, url, model, body = null) {
     const rt = credentials?.runtimeTransport;
     const headers = { "Content-Type": "application/json", ...(rt ? rt.headers : this.config.headers) };
+    // Custom User-Agent policy: manual override (connection) > client own UA
+    // (auto-forward so client-gated upstreams accept ANY client, zero config)
+    // > registry/transport default. Never raises.
+    try {
+      const manualUa = credentials?.providerSpecificData?.customUserAgent;
+      if (typeof manualUa === "string" && manualUa.trim()) {
+        headers["User-Agent"] = manualUa.trim();
+      } else {
+        const raw = credentials?.rawHeaders || {};
+        let clientUa = null;
+        for (const k of ["user-agent", "User-Agent", "User-agent"]) {
+          if (raw[k]) { clientUa = String(raw[k]); break; }
+        }
+        if (clientUa && !/[^\x00-\xFF]/.test(clientUa)) {
+          headers["User-Agent"] = clientUa;
+        }
+      }
+    } catch { /* best-effort */ }
     // Per-connection Custom User-Agent (dashboard: providerSpecificData.customUserAgent).
     // Set = override; empty/absent = registry transport default. Mirrors chatgpt-web.
     const customUa = credentials?.providerSpecificData?.customUserAgent;
