@@ -250,6 +250,11 @@ export async function POST(request) {
         apiType: node.apiType,
         baseUrl: node.baseUrl,
         nodeName: node.name,
+        // Per-connection upstream customization (mirrors EditConnectionModal):
+        // Custom User-Agent / Custom Headers / Custom Query survive node re-derive.
+        ...(body.providerSpecificData?.customUserAgent ? { customUserAgent: String(body.providerSpecificData.customUserAgent).trim() } : {}),
+        ...(body.providerSpecificData?.customHeaders ? { customHeaders: body.providerSpecificData.customHeaders } : {}),
+        ...(body.providerSpecificData?.customQuery ? { customQuery: body.providerSpecificData.customQuery } : {}),
       };
     } else if (isAnthropicCompatibleProvider(provider)) {
       const node = await getProviderNodeById(provider);
@@ -260,6 +265,9 @@ export async function POST(request) {
         prefix: node.prefix,
         baseUrl: node.baseUrl,
         nodeName: node.name,
+        ...(body.providerSpecificData?.customUserAgent ? { customUserAgent: String(body.providerSpecificData.customUserAgent).trim() } : {}),
+        ...(body.providerSpecificData?.customHeaders ? { customHeaders: body.providerSpecificData.customHeaders } : {}),
+        ...(body.providerSpecificData?.customQuery ? { customQuery: body.providerSpecificData.customQuery } : {}),
       };
     } else if (isCustomEmbeddingProvider(provider)) {
       const node = await getProviderNodeById(provider);
@@ -270,6 +278,9 @@ export async function POST(request) {
         prefix: node.prefix,
         baseUrl: node.baseUrl,
         nodeName: node.name,
+        ...(body.providerSpecificData?.customUserAgent ? { customUserAgent: String(body.providerSpecificData.customUserAgent).trim() } : {}),
+        ...(body.providerSpecificData?.customHeaders ? { customHeaders: body.providerSpecificData.customHeaders } : {}),
+        ...(body.providerSpecificData?.customQuery ? { customQuery: body.providerSpecificData.customQuery } : {}),
       };
     }
 

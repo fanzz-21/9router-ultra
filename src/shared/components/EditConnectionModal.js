@@ -15,6 +15,8 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
     priority: 1,
     apiKey: "",
     customUserAgent: "",
+    customHeaders: "",
+    customQuery: "",
   });
   const [azureData, setAzureData] = useState({
     azureEndpoint: "",
@@ -39,6 +41,16 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         priority: connection.priority || 1,
         apiKey: "",
         customUserAgent: connection.providerSpecificData?.customUserAgent || "",
+        customHeaders: connection.providerSpecificData?.customHeaders
+          ? (typeof connection.providerSpecificData.customHeaders === "string"
+            ? connection.providerSpecificData.customHeaders
+            : JSON.stringify(connection.providerSpecificData.customHeaders, null, 2))
+          : "",
+        customQuery: connection.providerSpecificData?.customQuery
+          ? (typeof connection.providerSpecificData.customQuery === "string"
+            ? connection.providerSpecificData.customQuery
+            : JSON.stringify(connection.providerSpecificData.customQuery, null, 2))
+          : "",
       });
       // Load Azure-specific data if present
       if (connection.provider === "azure" && connection.providerSpecificData) {
@@ -192,6 +204,32 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         };
       }
 
+      // Custom Headers / Custom Query: per-connection JSON blobs merged into the
+      // upstream request (headers merged last = can override auth). Empty/invalid
+      // JSON = cleared. Validated client-side; executor re-validates fail-open.
+      const parseJsonField = (s) => {
+        const t = (s || "").trim();
+        if (!t) return null;
+        try {
+          const v = JSON.parse(t);
+          return (v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length) ? v : null;
+        } catch { return undefined; } // undefined = parse error → keep untouched
+      };
+      const parsedHeaders = parseJsonField(formData.customHeaders);
+      const parsedQuery = parseJsonField(formData.customQuery);
+      if (parsedHeaders !== undefined) {
+        updates.providerSpecificData = {
+          ...((updates.providerSpecificData) || (connection.providerSpecificData) || {}),
+          ...(parsedHeaders ? { customHeaders: parsedHeaders } : { customHeaders: null }),
+        };
+      }
+      if (parsedQuery !== undefined) {
+        updates.providerSpecificData = {
+          ...((updates.providerSpecificData) || (connection.providerSpecificData) || {}),
+          ...(parsedQuery ? { customQuery: parsedQuery } : { customQuery: null }),
+        };
+      }
+
       // Add Azure-specific data if this is an Azure connection
       if (isAzure) {
         updates.providerSpecificData = {
@@ -265,6 +303,34 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
                 {validationResult === "success" ? "Valid" : "Invalid"}
               </Badge>
             )}
+          </>
+        )}
+
+        {/* Per-connection upstream customization: UA / Headers / Query (works for
+            every provider type — merged into the upstream request by the executor) */}
+        {!isOAuth && (
+          <>
+            <Input
+              label="Custom User-Agent"
+              value={formData.customUserAgent}
+              onChange={(e) => setFormData({ ...formData, customUserAgent: e.target.value })}
+              placeholder="e.g. hermes-agent/0.21.3 (empty = auto-forward client UA)"
+              hint="Overrides the User-Agent sent upstream."
+            />
+            <Input
+              label="Custom Headers (JSON)"
+              value={formData.customHeaders}
+              onChange={(e) => setFormData({ ...formData, customHeaders: e.target.value })}
+              placeholder='{"X-Custom": "value"}'
+              hint='Extra headers merged into every upstream request (can override auth). JSON object, e.g. {"X-Title":"MyApp"}.'
+            />
+            <Input
+              label="Custom Query Params (JSON)"
+              value={formData.customQuery}
+              onChange={(e) => setFormData({ ...formData, customQuery: e.target.value })}
+              placeholder='{"api-version": "2024-10-01"}'
+              hint="Query params appended to the upstream URL. JSON object, e.g. {'beta':'true'}."
+            />
           </>
         )}
 

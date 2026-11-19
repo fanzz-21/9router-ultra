@@ -38,6 +38,8 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
     proxyPoolId: NONE_PROXY_POOL_VALUE,
     ollamaHostUrl: "",
     customUserAgent: "",
+    customHeaders: "",
+    customQuery: "",
   });
   const [azureData, setAzureData] = useState({
     azureEndpoint: "",
@@ -80,6 +82,23 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
   const buildProviderSpecificData = () => {
   // Custom User-Agent: per-connection upstream identity (empty = provider default).
   if (formData.customUserAgent.trim()) return { customUserAgent: formData.customUserAgent.trim() };
+  // Custom Headers / Query (JSON objects) — merged into the upstream request.
+  {
+    const blob = {};
+    const parseJson = (s) => {
+      const t = (s || "").trim();
+      if (!t) return null;
+      try {
+        const v = JSON.parse(t);
+        return (v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length) ? v : null;
+      } catch { return null; }
+    };
+    const h = parseJson(formData.customHeaders);
+    const q = parseJson(formData.customQuery);
+    if (h) blob.customHeaders = h;
+    if (q) blob.customQuery = q;
+    if (Object.keys(blob).length) return blob;
+  }
 
     if (isOllamaLocal && formData.ollamaHostUrl.trim()) {
       return { baseUrl: formData.ollamaHostUrl.trim() };
@@ -513,6 +532,22 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
             value={formData.customUserAgent}
             onChange={(e) => setFormData({ ...formData, customUserAgent: e.target.value })}
             placeholder="e.g. hermes-agent/0.21.3 (leave blank for provider default)"
+          />
+        )}
+        {(
+          <Input
+            label="Custom Headers (optional, JSON)"
+            value={formData.customHeaders}
+            onChange={(e) => setFormData({ ...formData, customHeaders: e.target.value })}
+            placeholder='{"X-Title": "MyApp"} (extra headers merged into upstream request)'
+          />
+        )}
+        {(
+          <Input
+            label="Custom Query Params (optional, JSON)"
+            value={formData.customQuery}
+            onChange={(e) => setFormData({ ...formData, customQuery: e.target.value })}
+            placeholder='{"beta": "true"} (appended to upstream URL)'
           />
         )}
         {isCompatible && (

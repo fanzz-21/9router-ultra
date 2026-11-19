@@ -153,21 +153,39 @@ export class DefaultExecutor extends BaseExecutor {
   }
 
   buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    // Per-connection Custom Query Params (providerSpecificData.customQuery —
+    // JSON object) appended to whatever URL the provider resolves. Fail-open.
+    const appendCustomQuery = (url) => {
+      try {
+        const rawQ = credentials?.providerSpecificData?.customQuery;
+        const parsed = typeof rawQ === "string" ? JSON.parse(rawQ) : rawQ;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.keys(parsed).length) {
+          const qs = new URLSearchParams();
+          for (const [qk, qv] of Object.entries(parsed)) {
+            if (typeof qk === "string" && qk.trim() && qv !== undefined && qv !== null) qs.append(qk.trim(), String(qv));
+          }
+          const s = qs.toString();
+          if (s) url += (url.includes("?") ? "&" : "?") + s;
+        }
+      } catch { /* fail-open */ }
+      return url;
+    };
     // Runtime transport (multi-endpoint providers): use the sourceFormat-matched endpoint
     const rt = credentials?.runtimeTransport;
     if (rt?.baseUrl) {
-      return rt.urlSuffix ? `${rt.baseUrl}${rt.urlSuffix}` : rt.baseUrl;
+      const url = rt.urlSuffix ? `${rt.baseUrl}${rt.urlSuffix}` : rt.baseUrl;
+      return appendCustomQuery(url);
     }
     if (this.provider?.startsWith?.("openai-compatible-")) {
       const baseUrl = credentials?.providerSpecificData?.baseUrl || OPENAI_COMPAT_BASE;
       const normalized = baseUrl.replace(/\/$/, "");
       const path = resolveOpenAICompatibleApiType(this.provider, credentials) === "responses" ? "/responses" : "/chat/completions";
-      return `${normalized}${path}`;
+      return appendCustomQuery(`${normalized}${path}`);
     }
     if (this.provider?.startsWith?.("anthropic-compatible-")) {
       const baseUrl = credentials?.providerSpecificData?.baseUrl || ANTHROPIC_COMPAT_BASE;
       const normalized = baseUrl.replace(/\/$/, "");
-      return `${normalized}/messages`;
+      return appendCustomQuery(`${normalized}/messages`);
     }
     // gemini-format: build :streamGenerateContent / :generateContent path
     if (this.config.format === "gemini") {
@@ -288,6 +306,21 @@ export class DefaultExecutor extends BaseExecutor {
     }
 
     if (stream) headers["Accept"] = "text/event-stream";
+    // Per-connection Custom Headers (dashboard: providerSpecificData.customHeaders
+    // — JSON object). Merged LAST so they override everything above, including
+    // auth headers: the operator explicitly set them. Invalid JSON / non-object
+    // is ignored silently (fail-open, same contract as customUserAgent).
+    try {
+      const rawCustom = credentials?.providerSpecificData?.customHeaders;
+      const parsed = typeof rawCustom === "string" ? JSON.parse(rawCustom) : rawCustom;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [hk, hv] of Object.entries(parsed)) {
+          if (typeof hk === "string" && hk.trim() && hv !== undefined && hv !== null) {
+            headers[hk.trim()] = String(hv);
+          }
+        }
+      }
+    } catch { /* fail-open */ }
     return headers;
   }
 
