@@ -42,12 +42,12 @@ let stickySelectionMutex = Promise.resolve();
 const lastUsedDirty = new Map();
 let lastUsedFlushTimer = null;
 
-// Auto-quarantine (9Router Ultimate): a credential that fails auth repeatedly
-// is dead, not unlucky — per-model locks alone would retry it forever
-// across models. After QUARANTINE_AFTER_AUTH_FAILURES consecutive 401/403s
-// the account is deactivated with a dashboard-visible reason (lastError)
-// and can be re-enabled by hand (which resets the counter).
-const QUARANTINE_AFTER_AUTH_FAILURES = 5;
+// Auto-quarantine (9Router Ultimate): DISABLED per operator request — a
+// credential that fails auth repeatedly is never auto-deactivated anymore.
+// QUARANTINE_AFTER_AUTH_FAILURES is set to Infinity so the 401/403 counter
+// is still tracked (dashboard visibility) but the deactivate branch can
+// never fire. Re-enable manually / clearAccountError still work as before.
+const QUARANTINE_AFTER_AUTH_FAILURES = Infinity;
 
 // Provider-wide auth-failure guard: if several distinct accounts of one
 // provider fail auth within a short window, the provider itself is sick
