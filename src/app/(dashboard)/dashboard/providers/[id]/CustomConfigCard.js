@@ -84,7 +84,9 @@ export default function CustomConfigCard({ providerId }) {
   };
 
   // Only render when there is something to customize: registry headers or existing overrides
-  if (Object.keys(builtin).length === 0 && !hasOverride) return null;
+  // Always render: providers without registry built-ins (e.g. custom
+  // openai-compatible nodes) still get the key-value editor — rows start
+  // empty and anything the user adds becomes an upstream header override.
 
   return (
     <Card padding="xs">
