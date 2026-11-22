@@ -114,113 +114,16 @@ function modelCooldownMs(m) {
 // 2nd arg (provider, now). A numeric 2nd arg is a timestamp, never a
 // model id (models are strings), so it is treated as `now`.
 export function providerBreakerGate(provider, model = null, now = Date.now()) {
-  if (typeof model === "number") {
-    now = model;
-    model = null;
-  }
-  if (!provider) return "allow";
-  const e = states.get(provider);
-  if (!e || e.state === "closed") {
-    if (!e || !model) return "allow";
-    const key = normalizeModelKey(provider, model);
-    if (!key) return "allow";
-    const m = e.models.get(key);
-    if (!m || !m.cooldownUntil) return "allow";
-    if (now >= m.cooldownUntil) {
-      // Cooldown expired: the model is servable again. Keep backoffLevel —
-      // a repeat failure escalates the next cooldown; only a success resets.
-      m.cooldownUntil = null;
-      m.failures = [];
-      return "allow";
-    }
-    return "skip";
-  }
-  if (e.state === "open") {
-    if (now >= e.openedAt + PROVIDER_BREAKER_OPEN_MS) {
-      e.state = "half-open";
-      e.halfOpenUntil = now + PROVIDER_BREAKER_PROBE_MS;
-      return "allow";
-    }
-    return "skip";
-  }
-  // half-open
-  if (now >= e.halfOpenUntil) {
-    e.state = "closed";
-    e.failures = [];
-    e.openedAt = null;
-    e.halfOpenUntil = null;
-    return "allow";
-  }
-  // Probing: do not burn the probe on a model already known-bad — the
-  // probe must test a healthy model, or the provider re-opens on a
-  // failure that was already priced in.
-  if (model) {
-    const key = normalizeModelKey(provider, model);
-    if (key) {
-      const m = e.models.get(key);
-      if (m?.cooldownUntil && now < m.cooldownUntil) return "skip";
-    }
-  }
+  // DISABLED (operator request): the provider breaker never skips a provider
+  // or a model. Failures are surfaced straight to the caller instead of the
+  // fleet going quiet for a cooldown/probe window.
   return "allow";
 }
 
 export function recordProviderFailure(provider, connectionId, model = null, now = Date.now()) {
-  // Backward-compatible overload: a numeric 3rd arg is a timestamp
-  // (old callers passed (provider, connectionId, now)).
-  if (typeof model === "number") {
-    now = model;
-    model = null;
-  }
-  if (!provider || !connectionId) return;
-  const e = entryFor(provider);
-  if (e.state === "half-open") {
-    // First failure in the probe window re-opens immediately.
-    e.state = "open";
-    e.openedAt = now;
-    e.halfOpenUntil = null;
-    e.failures = [];
-    return;
-  }
-  if (e.state === "open") return;
-  const key = normalizeModelKey(provider, model);
-  // A model already cooling down is ignored entirely — its failures must
-  // not extend anything, mirroring the provider-open rule below.
-  if (key) {
-    const m = modelEntryFor(e, key);
-    if (m.cooldownUntil && now < m.cooldownUntil) return;
-    pruneModel(m, now);
-    m.failures.push({ at: now, connectionId });
-    pruneModel(m, now);
-    const modelDistinct = new Set(m.failures.map((f) => f.connectionId));
-    if (
-      m.failures.length >= PROVIDER_BREAKER_MIN_FAILURES &&
-      modelDistinct.size >= PROVIDER_BREAKER_MIN_CONNECTIONS
-    ) {
-      // This model alone reached the threshold: park the model with
-      // exponential backoff, and drop its failures from the provider
-      // bucket so they can never trip the provider.
-      m.cooldownUntil = now + modelCooldownMs(m);
-      m.backoffLevel += 1;
-      m.failures = [];
-      e.failures = e.failures.filter((f) => f.modelKey !== key);
-      return;
-    }
-    // A model with cooldown history is known-bad: its failures belong to
-    // the model, never the provider.
-    if (m.backoffLevel > 0) return;
-  }
-  prune(e, now);
-  e.failures.push({ at: now, connectionId, modelKey: key });
-  prune(e, now);
-  const distinct = new Set(e.failures.map((f) => f.connectionId));
-  if (
-    e.failures.length >= PROVIDER_BREAKER_MIN_FAILURES &&
-    distinct.size >= PROVIDER_BREAKER_MIN_CONNECTIONS
-  ) {
-    e.state = "open";
-    e.openedAt = now;
-    e.failures = [];
-  }
+  // DISABLED (operator request): failures are never recorded, so the breaker
+  // can never open and the dashboard never shows a stale "open" provider.
+  return;
 }
 
 export function recordProviderSuccess(provider, model = null, now = Date.now()) {

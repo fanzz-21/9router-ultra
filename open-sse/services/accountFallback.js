@@ -157,12 +157,13 @@ export function getModelLockKey(model) {
 /**
  * Check if a model lock on a connection is still active.
  * Reads flat field `modelLock_${model}` (or `modelLock___all` when model=null).
+ *
+ * DISABLED (operator request): model locks are never honoured, so a failing
+ * model is retried immediately instead of being parked for a cooldown. The
+ * stored fields may still exist from earlier runs; they are simply ignored.
  */
 export function isModelLockActive(connection, model) {
-  const key = getModelLockKey(model);
-  const expiry = connection[key] || connection[MODEL_LOCK_ALL];
-  if (!expiry) return false;
-  return new Date(expiry).getTime() > Date.now();
+  return false;
 }
 
 /**
@@ -186,8 +187,9 @@ export function getEarliestModelLockUntil(connection) {
  * Build update object to set a model lock on a connection.
  */
 export function buildModelLockUpdate(model, cooldownMs) {
-  const key = getModelLockKey(model);
-  return { [key]: new Date(Date.now() + cooldownMs).toISOString() };
+  // DISABLED (operator request): no model lock is ever persisted, so a failing
+  // model is retried on the very next request instead of being parked.
+  return {};
 }
 
 /**
@@ -319,7 +321,8 @@ export function pickWindowedLru(connections, windowSize = 32, rng = Math.random,
  * @returns {boolean}
  */
 export function shouldStampUnavailable(cooldownMs, minCooldownMs) {
-  return cooldownMs >= minCooldownMs;
+  // DISABLED (operator request): never brand a connection "unavailable".
+  return false;
 }
 
 /**
