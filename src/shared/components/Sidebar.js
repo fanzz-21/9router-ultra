@@ -28,7 +28,7 @@ const navItems = [
   { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings", color: "#FBBF24" },
   { href: "/dashboard/prompt-injection", label: "Prompt Injection", icon: "skull", color: "#C084FC", badge: "PRO" },
   { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal", color: "#22D3EE" },
-  { href: "/dashboard/compare", label: "Compare Models", icon: "compare_arrows", color: "#F59E0B" },
+  { href: "/dashboard/compare", label: "Compare Models", icon: "swords", color: "#F59E0B" },
 ];
 
 const debugItems = [
