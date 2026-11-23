@@ -13,6 +13,7 @@ import { getKeyAccessContext, filterModelsListForKey } from "@/sse/services/keyA
 import { AUTO_INTENTS } from "@/sse/services/autoRouting.js";
 import { getModelsListCache, setModelsListCache } from "@/sse/services/modelsListCache.js";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
+import { withKiroClientVersion } from "@/lib/kiro/clientVersion";
 import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
 import { resolveQoderModels, routableQoderModels } from "open-sse/services/qoderModels.js";
 import { resolveCopilotModels } from "open-sse/services/copilotModels.js";
@@ -83,7 +84,9 @@ const LIVE_MODEL_RESOLVERS = {
     const result = await resolveKiroModels({
       accessToken: conn.accessToken,
       refreshToken: conn.refreshToken,
-      providerSpecificData: conn.providerSpecificData || {}
+      // Honor the runtime client-version override so the catalog clears
+      // Kiro's version gate without a redeploy.
+      providerSpecificData: await withKiroClientVersion(conn.providerSpecificData)
     }, { log: console });
     return result?.models?.length ? { models: result.models } : null;
   },
