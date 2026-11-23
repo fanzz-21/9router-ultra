@@ -7,6 +7,7 @@ import {
 } from "../config/kiroConstants.js";
 import { v4 as uuidv4 } from "uuid";
 import { refreshKiroToken } from "../services/tokenRefresh.js";
+import { buildKiroIdentityHeaders } from "../shared/kiroIdentity.js";
 import { SSE_DONE, SSE_HEADERS } from "../utils/sseConstants.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { STREAM_FIRST_CHUNK_TIMEOUT_MS } from "../config/runtimeConfig.js";
@@ -221,8 +222,15 @@ export class KiroExecutor extends BaseExecutor {
   }
 
   buildHeaders(credentials, stream = true, url = "") {
+    const identity = buildKiroIdentityHeaders(credentials);
     const headers = {
       ...this.config.headers,
+      // Kiro's client-version gate rejects stale identities with
+      // "This version of Kiro is no longer supported". Send the current
+      // Kiro IDE identity (see open-sse/shared/kiroIdentity.js), derived
+      // per-account, on every request.
+      "User-Agent": identity["User-Agent"],
+      "X-Amz-User-Agent": identity["x-amz-user-agent"],
       "Amz-Sdk-Request": "attempt=1; max=3",
       "Amz-Sdk-Invocation-Id": uuidv4()
     };
