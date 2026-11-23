@@ -7,7 +7,12 @@ import {
 } from "../config/kiroConstants.js";
 import { v4 as uuidv4 } from "uuid";
 import { refreshKiroToken } from "../services/tokenRefresh.js";
-import { buildKiroIdentityHeaders } from "../shared/kiroIdentity.js";
+import {
+  buildKiroIdentityHeaders,
+  resolveKiroClientVersion,
+  kiroClientVersionFromOverrideHeaders,
+  KIRO_CLIENT_VERSION_HEADER,
+} from "../shared/kiroIdentity.js";
 import { SSE_DONE, SSE_HEADERS } from "../utils/sseConstants.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { STREAM_FIRST_CHUNK_TIMEOUT_MS } from "../config/runtimeConfig.js";
@@ -222,13 +227,14 @@ export class KiroExecutor extends BaseExecutor {
   }
 
   buildHeaders(credentials, stream = true, url = "") {
+    // Kiro's client-version gate rejects stale identities with "This version
+    // of Kiro is no longer supported". Send the current Kiro IDE identity
+    // (see open-sse/shared/kiroIdentity.js), derived per-account. The version
+    // honors providerSpecificData.kiroClientVersion (set at runtime from the
+    // X-Kiro-Client-Version custom header), falling back to KIRO_VERSION.
     const identity = buildKiroIdentityHeaders(credentials);
     const headers = {
       ...this.config.headers,
-      // Kiro's client-version gate rejects stale identities with
-      // "This version of Kiro is no longer supported". Send the current
-      // Kiro IDE identity (see open-sse/shared/kiroIdentity.js), derived
-      // per-account, on every request.
       "User-Agent": identity["User-Agent"],
       "X-Amz-User-Agent": identity["x-amz-user-agent"],
       "Amz-Sdk-Request": "attempt=1; max=3",
@@ -357,9 +363,51 @@ export class KiroExecutor extends BaseExecutor {
    * Errors are returned untransformed so the upstream handler can read the body,
    * classify the status, and trigger account fallback/cooldown.
    */
+  /**
+   * Resolve the runtime Kiro client-version override from the request's
+   * providerOverrides, fold it onto credentials.providerSpecificData, and
+   * return a shallow-cloned args with the pseudo-header removed from the
+   * override headers. Returns the original args untouched when no override is
+   * present, so the common path allocates nothing extra.
+   */
+  applyKiroVersionOverride(args) {
+    const overrideHeaders = args?.providerOverrides?.headers;
+    const version = kiroClientVersionFromOverrideHeaders(overrideHeaders);
+    if (!version) return args;
+
+    // Drop the pseudo-header so base.js does not forward it upstream.
+    const strippedHeaders = {};
+    const target = KIRO_CLIENT_VERSION_HEADER.toLowerCase();
+    for (const [name, value] of Object.entries(overrideHeaders)) {
+      if (name.toLowerCase() !== target) strippedHeaders[name] = value;
+    }
+
+    return {
+      ...args,
+      credentials: {
+        ...args.credentials,
+        providerSpecificData: {
+          ...(args.credentials?.providerSpecificData || {}),
+          kiroClientVersion: version,
+        },
+      },
+      providerOverrides: {
+        ...args.providerOverrides,
+        headers: strippedHeaders,
+      },
+    };
+  }
+
   async execute(args) {
-    const result = await super.execute(args);
-    if (result?.response?.ok) this.attachIntegrityGate(result, args);
+    // Runtime client-version override: a user can set the pseudo-header
+    // `X-Kiro-Client-Version` in the per-provider Custom Headers store to bump
+    // the Kiro client version without a redeploy. Lift it onto this request's
+    // providerSpecificData so buildHeaders/buildKiroIdentityHeaders apply it,
+    // and strip it from the override headers so it never leaves as a bogus
+    // upstream header. (base.js merges providerOverrides.headers last.)
+    const nextArgs = this.applyKiroVersionOverride(args);
+    const result = await super.execute(nextArgs);
+    if (result?.response?.ok) this.attachIntegrityGate(result, nextArgs);
     return result;
   }
 

@@ -10,6 +10,7 @@ import { resolveKiroModels } from "open-sse/services/kiroModels.js";
 import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
 import { resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { resolveGrokCliModels } from "open-sse/services/grokCliModels.js";
+import { withKiroClientVersion } from "@/lib/kiro/clientVersion";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { resolveCursorModels } from "open-sse/services/cursorModels.js";
 import { resolveZedModels } from "open-sse/shared/zedAuth.js";
@@ -433,7 +434,9 @@ const PROVIDER_MODELS_CONFIG = {
       const credentials = {
         accessToken: connection.accessToken,
         refreshToken: connection.refreshToken,
-        providerSpecificData: connection.providerSpecificData || {}
+        // Stamp the runtime client-version override (if any) so the model
+        // catalog request clears Kiro's version gate without a redeploy.
+        providerSpecificData: await withKiroClientVersion(connection.providerSpecificData)
       };
       let warning;
       try {

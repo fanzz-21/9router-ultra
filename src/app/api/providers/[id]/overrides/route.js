@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { PROVIDERS } from "open-sse/config/providers.js";
 import { resolveProviderAlias } from "open-sse/services/model.js";
+import { KIRO_VERSION } from "open-sse/config/kiroClient.js";
+import { KIRO_CLIENT_VERSION_HEADER, sanitizeKiroClientVersion } from "open-sse/shared/kiroIdentity.js";
 
 export const dynamic = "force-dynamic";
 
@@ -74,9 +76,18 @@ export async function GET(request, { params }) {
     const override = (await readOverrides())[canonical] || {};
     // Built-in headers come straight from the registry transport — single source of
     // truth, so the UI pre-fills exactly what this provider sends upstream.
+    const builtinHeaders = { ...(PROVIDERS[canonical]?.headers || {}) };
+    // Kiro: surface the client version as an editable pseudo-header so an
+    // operator can bump it (to clear Kiro's version gate) without a redeploy.
+    // It is not a real upstream header — buildHeaders strips it and splices the
+    // value into the User-Agent instead. Pre-fill with the compiled-in default
+    // so "diff-on-save" only persists a user-changed value.
+    if (canonical === "kiro") {
+      builtinHeaders[KIRO_CLIENT_VERSION_HEADER] = KIRO_VERSION;
+    }
     return NextResponse.json({
       headers: override.headers || {},
-      builtinHeaders: PROVIDERS[canonical]?.headers || {},
+      builtinHeaders,
     });
   } catch (error) {
     console.log("Error getting provider overrides:", error);
@@ -96,6 +107,20 @@ export async function PUT(request, { params }) {
     const { override, error } = normalizeOverride(body);
     if (error) {
       return NextResponse.json({ error }, { status: 400 });
+    }
+    // Validate the Kiro client-version pseudo-header value before persisting,
+    // so a malformed version can never be stored (it would otherwise silently
+    // fall back to KIRO_VERSION at request time).
+    if (canonical === "kiro" && override?.headers) {
+      for (const [name, value] of Object.entries(override.headers)) {
+        if (name.toLowerCase() === KIRO_CLIENT_VERSION_HEADER.toLowerCase()
+            && !sanitizeKiroClientVersion(value)) {
+          return NextResponse.json(
+            { error: `Invalid ${KIRO_CLIENT_VERSION_HEADER}: expected a version like 1.5.11` },
+            { status: 400 },
+          );
+        }
+      }
     }
     const current = await readOverrides();
     const next = { ...current };
