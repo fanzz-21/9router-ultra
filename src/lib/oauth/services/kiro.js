@@ -1,4 +1,5 @@
 import { KIRO_CONFIG, assertValidAwsRegion } from "../constants/oauth.js";
+import { buildKiroIdentityHeaders } from "open-sse/shared/kiroIdentity.js";
 
 /**
  * Kiro OAuth Service
@@ -300,14 +301,18 @@ export class KiroService {
     assertValidAwsRegion(region);
     const params = new URLSearchParams({ origin: "AI_EDITOR" });
     const endpoint = `https://q.${region}.amazonaws.com/ListAvailableModels?${params}`;
+    // Kiro's client-version gate also guards API-key validation. Send the
+    // current Kiro IDE identity (see open-sse/shared/kiroIdentity.js), keyed
+    // off the API key, instead of the stale kiro-ide/1.0.0 string.
+    const identity = buildKiroIdentityHeaders({ accessToken: apiKey });
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "TokenType": "API_KEY",
         "Accept": "application/json",
-        "User-Agent": "AWS-SDK-JS/3.0.0 kiro-ide/1.0.0",
-        "X-Amz-User-Agent": "aws-sdk-js/3.0.0 kiro-ide/1.0.0",
+        "User-Agent": identity["User-Agent"],
+        "X-Amz-User-Agent": identity["x-amz-user-agent"],
       },
     });
 

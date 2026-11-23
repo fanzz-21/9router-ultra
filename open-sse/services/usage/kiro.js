@@ -4,6 +4,7 @@
 
 import { proxyAwareFetch } from "../../utils/proxyFetch.js";
 import { resolveDefaultProfileArn } from "../../config/kiroConstants.js";
+import { buildKiroIdentityHeaders } from "../../shared/kiroIdentity.js";
 import { U, parseResetTime } from "./shared.js";
 
 /**
@@ -58,6 +59,14 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
   const isExternalIdp = authMethod === "external_idp";
   const apiKeyHeaders = isApiKey ? { tokentype: "API_KEY" } : {};
   const externalIdpHeaders = isExternalIdp ? { TokenType: "EXTERNAL_IDP" } : {};
+  // Kiro's client-version gate also guards the usage endpoints. Send the
+  // current Kiro IDE identity (see open-sse/shared/kiroIdentity.js) on every
+  // attempt, keyed off this account's stable id, instead of a stale/bare UA.
+  const identity = buildKiroIdentityHeaders({ accessToken, providerSpecificData });
+  const kiroUaHeaders = {
+    "user-agent": identity["User-Agent"],
+    "x-amz-user-agent": identity["x-amz-user-agent"],
+  };
 
   // For api-key auth, never inject the shared default placeholder profileArn —
   // CodeWhisperer 403s a request whose profileArn isn't owned by the key's
@@ -83,8 +92,7 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
           headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Accept": "application/json",
-            "x-amz-user-agent": "aws-sdk-js/1.0.0 KiroIDE",
-            "user-agent": "aws-sdk-js/1.0.0 KiroIDE",
+            ...kiroUaHeaders,
             ...apiKeyHeaders,
             ...externalIdpHeaders,
           },
@@ -101,6 +109,7 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
           "Content-Type": "application/x-amz-json-1.0",
           "x-amz-target": "AmazonCodeWhispererService.GetUsageLimits",
           "Accept": "application/json",
+          ...kiroUaHeaders,
           ...apiKeyHeaders,
           ...externalIdpHeaders,
         },
@@ -124,6 +133,7 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
           headers: {
             "Authorization": `Bearer ${accessToken}`,
             "Accept": "application/json",
+            ...kiroUaHeaders,
             ...apiKeyHeaders,
             ...externalIdpHeaders,
           },

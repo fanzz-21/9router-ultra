@@ -26,11 +26,13 @@ export default {
     retry: {
       "429": 0,
     },
+    // User-Agent / x-amz-user-agent are intentionally NOT set here: Kiro's
+    // client-version gate rejects a stale identity, and the identity must be
+    // derived per-account. KiroExecutor.buildHeaders() adds the current
+    // identity from open-sse/shared/kiroIdentity.js on every request.
     headers: {
       "Content-Type": "application/json",
       Accept: "application/vnd.amazon.eventstream",
-      "User-Agent": "AWS-SDK-JS/3.0.0 kiro-ide/1.0.0",
-      "X-Amz-User-Agent": "aws-sdk-js/3.0.0 kiro-ide/1.0.0",
     },
     tokenUrl: "https://prod.us-east-1.auth.desktop.kiro.dev/refreshToken",
     authUrl: "https://prod.us-east-1.auth.desktop.kiro.dev",
