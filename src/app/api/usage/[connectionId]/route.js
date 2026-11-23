@@ -3,6 +3,7 @@ import "open-sse/index.js";
 
 import { getProviderConnectionById, updateProviderConnection } from "@/lib/localDb";
 import { getUsageForProvider } from "open-sse/services/usage.js";
+import { withKiroClientVersion } from "@/lib/kiro/clientVersion";
 import { isUnrecoverableRefreshError } from "open-sse/services/tokenRefresh.js";
 import { getExecutor } from "open-sse/executors/index.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
@@ -184,6 +185,13 @@ export async function GET(request, { params }) {
           error: `Credential refresh failed: ${refreshError.message}`
         }, { status: 401 });
       }
+    }
+
+    // Stamp the runtime Kiro client-version override onto the connection so the
+    // quota call clears Kiro's version gate without a redeploy (no-op for other
+    // providers / when no override is set).
+    if (connection.provider === "kiro") {
+      connection = { ...connection, providerSpecificData: await withKiroClientVersion(connection.providerSpecificData) };
     }
 
     // Fetch usage from provider API

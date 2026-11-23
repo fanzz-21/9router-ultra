@@ -1,5 +1,6 @@
 import { KIRO_CONFIG, assertValidAwsRegion } from "../constants/oauth.js";
 import { buildKiroIdentityHeaders } from "open-sse/shared/kiroIdentity.js";
+import { getConfiguredKiroClientVersion } from "@/lib/kiro/clientVersion";
 
 /**
  * Kiro OAuth Service
@@ -303,8 +304,10 @@ export class KiroService {
     const endpoint = `https://q.${region}.amazonaws.com/ListAvailableModels?${params}`;
     // Kiro's client-version gate also guards API-key validation. Send the
     // current Kiro IDE identity (see open-sse/shared/kiroIdentity.js), keyed
-    // off the API key, instead of the stale kiro-ide/1.0.0 string.
-    const identity = buildKiroIdentityHeaders({ accessToken: apiKey });
+    // off the API key. Honor the runtime client-version override so a user can
+    // bump the version without a redeploy; falls back to KIRO_VERSION.
+    const version = await getConfiguredKiroClientVersion();
+    const identity = buildKiroIdentityHeaders({ accessToken: apiKey }, version || undefined);
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {

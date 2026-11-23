@@ -22,7 +22,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
 import { refreshKiroToken } from "./tokenRefresh.js";
-import { kiroMachineId, kiroUserAgent, kiroAmzUserAgent } from "../shared/kiroIdentity.js";
+import { kiroMachineId, kiroUserAgent, kiroAmzUserAgent, resolveKiroClientVersion } from "../shared/kiroIdentity.js";
 
 const DEFAULT_REGION = "us-east-1";
 const FETCH_TIMEOUT_MS = 30_000;
@@ -61,10 +61,14 @@ function regionFromProfileArn(profileArn) {
  */
 function buildKiroFingerprintHeaders(credentials) {
   const machineId = kiroMachineId(credentials);
+  // Honor a runtime client-version override (providerSpecificData.
+  // kiroClientVersion, set from the X-Kiro-Client-Version custom header),
+  // falling back to the compiled-in KIRO_VERSION.
+  const version = resolveKiroClientVersion(credentials);
 
   return {
-    "User-Agent": kiroUserAgent(machineId),
-    "x-amz-user-agent": kiroAmzUserAgent(machineId),
+    "User-Agent": kiroUserAgent(machineId, version),
+    "x-amz-user-agent": kiroAmzUserAgent(machineId, version),
     "x-amzn-kiro-agent-mode": "vibe",
     "x-amzn-codewhisperer-optout": "true",
     "amz-sdk-request": "attempt=1; max=1",
