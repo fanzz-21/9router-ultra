@@ -36,8 +36,11 @@ import { DefaultExecutor } from "./default.js";
 import { MinimaxCodeExecutor } from "./minimax-code.js";
 import { DevinCliExecutor } from "./devin-cli.js";
 import { OrcaRouterExecutor } from "./orcarouter.js";
+import { DeepAIExecutor } from "./deepai.js";
 
 const executors = {
+  deepai: new DeepAIExecutor(),
+  dai: new DeepAIExecutor(), // Alias for deepai
   antigravity: new AntigravityExecutor(),
   azure: new AzureExecutor(),
   "gemini-cli": new GeminiCLIExecutor(),
